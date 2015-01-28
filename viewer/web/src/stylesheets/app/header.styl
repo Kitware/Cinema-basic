@@ -1,0 +1,47 @@
+$headerTextColor = #fdfcfc
+$headerHighlightColor = #555
+$textColor = #666
+$highlightTextColor = #333
+$headerHeight = 40px
+
+.c-header-container
+  color $headerTextColor
+  padding 0 12px 0 18px
+
+  .btn-group
+    margin-left 10px
+    margin-top 5px
+
+  .btn
+    min-width 40px
+    height 30px
+
+.c-app-title
+  display inline-block
+  line-height $headerHeight
+  font-weight bold
+  font-size 20px
+
+.header-left
+  float left
+  i
+    line-height $headerHeight
+    color $headerTextColor
+    cursor pointer
+    border-radius 3px
+    padding 5px
+
+    &:hover
+      background-color $headerHighlightColor
+
+.header-right
+  float right
+  a
+    line-height $headerHeight
+    color $headerTextColor
+    cursor pointer
+    border-radius 3px
+    padding 5px
+
+    &:hover
+      background-color $headerHighlightColor

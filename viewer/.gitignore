@@ -1,0 +1,6 @@
+.DS_Store
+*.log
+/config.json
+node_modules
+data
+.*.sw?

@@ -1,0 +1,4 @@
+each controlPanel in controlList
+    if (controlPanel.key !== 'information')
+      a(title="#{controlPanel.title}")
+        i.c-visibility-button(class="#{controlPanel.icon}", container-class="c-#{controlPanel.key}-panel")
