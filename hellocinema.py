@@ -9,11 +9,10 @@ from PySide.QtGui import *
 import PIL.ImageFile
 
 # Import cinema IO
-sys.path.append("/Source/CINEMA/Cinema-basic/")
 import IO.cinema_store
 
 #open up a store
-cs = IO.cinema_store.FileStore("/Users/demarle/Desktop/testcinema/info.json")
+cs = IO.cinema_store.FileStore(sys.argv[1])
 cs.load()
 
 #from list of tracks, find default for each to make up a query
