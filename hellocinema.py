@@ -5,6 +5,7 @@
 import sys
 from PySide.QtCore import *
 from PySide.QtGui import *
+from PySide.QtUiTools import *
 
 # import Python Image Library
 import PIL.ImageFile
@@ -31,12 +32,16 @@ pimg = imageparser.close()
 
 # Show it in Qt
 app = QApplication(sys.argv)
+
+# set up UI
+from MainWindow import *
+mainWindow = MainWindow('MainWindow.ui')
+
 imageString = pimg.convert('RGBA').tostring('raw', 'RGBA')
 qimg = QImage(imageString, pimg.size[0], pimg.size[1], QImage.Format_ARGB32)
 pix = QPixmap.fromImage(qimg)
-lbl = QLabel()
-lbl.setPixmap(pix)
-lbl.show()
+mainWindow.setPixmap(pix)
+mainWindow.show()
 
 # Enter Qt application main loop
 app.exec_()
