@@ -1,3 +1,4 @@
+
 #!/usr/bin/python
 
 # Import PySide classes
@@ -9,11 +10,10 @@ from PySide.QtGui import *
 import PIL.ImageFile
 
 # Import cinema IO
-sys.path.append("/Source/CINEMA/Cinema-basic/")
 import IO.cinema_store
 
 #open up a store
-cs = IO.cinema_store.FileStore("/Users/demarle/Desktop/testcinema/info.json")
+cs = IO.cinema_store.FileStore(sys.argv[1])
 cs.load()
 
 #from list of tracks, find default for each to make up a query
@@ -31,8 +31,8 @@ pimg = imageparser.close()
 
 # Show it in Qt
 app = QApplication(sys.argv)
-
-qimg = QImage(pimg.tostring('raw', 'RGB'), pimg.size[0], pimg.size[1], QImage.Format_RGB888)
+imageString = pimg.convert('RGBA').tostring('raw', 'RGBA')
+qimg = QImage(imageString, pimg.size[0], pimg.size[1], QImage.Format_ARGB32)
 pix = QPixmap.fromImage(qimg)
 lbl = QLabel()
 lbl.setPixmap(pix)
