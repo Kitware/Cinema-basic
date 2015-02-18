@@ -17,18 +17,7 @@ import IO.cinema_store
 cs = IO.cinema_store.FileStore(sys.argv[1])
 cs.load()
 
-#from list of tracks, find default for each to make up a query
 aselection = {}
-#for key, val in cs.descriptor_definition.iteritems():
-#    aselection[key] = val[u'default']
-
-#find that default image
-#doc = cs.find(aselection).next() #only care about first one here
-
-#load it into PIL
-#imageparser = PIL.ImageFile.Parser()
-#imageparser.feed(doc.data)
-#pimg = imageparser.close()
 
 # Show it in Qt
 app = QApplication(sys.argv)
@@ -37,10 +26,6 @@ app = QApplication(sys.argv)
 from MainWindow import *
 mainWindow = MainWindow('MainWindow.ui')
 
-#imageString = pimg.convert('RGBA').tostring('raw', 'RGBA')
-#qimg = QImage(imageString, pimg.size[0], pimg.size[1], QImage.Format_ARGB32)
-#pix = QPixmap.fromImage(qimg)
-#mainWindow.setPixmap(pix)
 mainWindow.setStore(cs)
 mainWindow.createPropertyUI()
 mainWindow.show()

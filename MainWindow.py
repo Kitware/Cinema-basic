@@ -48,14 +48,14 @@ class MainWindow(QMainWindow):
     # Initializes image store query.
     def _initializeCurrentQuery(self):
         self._currentQuery = dict()
-        dd = self._store.descriptor_definition
+        dd = self._store.parameter_list
 
         for name, properties in dd.items():
             self._currentQuery[name] = dd[name]['default']
 
     # Create property UI
     def createPropertyUI(self):
-        dd = self._store.descriptor_definition;
+        dd = self._store.parameter_list
         for name, properties in dd.items():
             textLabel = QLabel(properties['label'], self)
             self._properties.layout().addWidget(textLabel)
@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
     def onSliderMoved(self):
         propertyName = self.sender().objectName()
         sliderIndex = self.sender().value()
-        dd = self._store.descriptor_definition
+        dd = self._store.parameter_list
         propertyValue = dd[propertyName]['values'][sliderIndex]
         self._currentQuery[propertyName] = propertyValue
 
@@ -109,7 +109,7 @@ class MainWindow(QMainWindow):
         imageparser = PIL.ImageFile.Parser()
         imageparser.feed(doc.data)
         pimg = imageparser.close()
-        imageString = pimg.convert('RGBA').tostring('raw', 'RGBA')
+        imageString = pimg.convert('RGBA').tostring('raw', 'BGRA')
         qimg = QImage(imageString, pimg.size[0], pimg.size[1], QImage.Format_ARGB32)
         pix = QPixmap.fromImage(qimg)
         self.setPixmap(pix)
