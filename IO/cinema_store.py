@@ -124,7 +124,7 @@ class Store(object):
         properties = self.validate_parameter(name, properties)
         self.__parameter_list[name] = properties
 
-    def get_parameter_properties(self, name):
+    def get_parameter(self, name):
         return self.__parameter_list[name]
 
     def validate_parameter(self, name, properties):

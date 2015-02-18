@@ -50,7 +50,7 @@ class Explorer(object):
         args = []
         values = []
         for name in ordered:
-            vals = self.cinema_store.get_descriptor_properties(name)['values']
+            vals = self.cinema_store.get_parameter(name)['values']
             args.append(name)
             values.append(vals)
 
