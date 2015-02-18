@@ -16,8 +16,8 @@ def demonstrate_manual_populate(fname="/tmp/demonstrate_manual_populate/info.jso
 
     cs = FileStore(fname)
     cs.filename_pattern = "{theta}/{phi}"
-    cs.add_descriptor("theta", make_cinema_descriptor_properties('theta', thetas))
-    cs.add_descriptor("phi", make_cinema_descriptor_properties('phi', phis))
+    cs.add_descriptor("theta", make_argument('theta', thetas))
+    cs.add_descriptor("phi", make_argument('phi', phis))
 
     for t in thetas:
         for p in phis:
@@ -33,8 +33,8 @@ def demonstrate_populate(fname="/tmp/demonstrate_populate/info.json"):
 
     cs = FileStore(fname)
     cs.filename_pattern = "{theta}/{phi}"
-    cs.add_descriptor("theta", make_cinema_descriptor_properties('theta', [0,10,20,30,40]))
-    cs.add_descriptor("phi", make_cinema_descriptor_properties('phi', [0,10,20,30,40]))
+    cs.add_descriptor("theta", make_argument('theta', [0,10,20,30,40]))
+    cs.add_descriptor("phi", make_argument('phi', [0,10,20,30,40]))
 
     class Track(explorers.Track):
         def execute(self, doc):
@@ -92,7 +92,7 @@ def test_vtk_clip(fname=None):
     #make or open a cinema data store to put results in
     cs = FileStore(fname)
     cs.filename_pattern = "{offset}_slice.png"
-    cs.add_descriptor("offset", make_cinema_descriptor_properties('offset', [0,.2,.4,.6,.8,1.0]))
+    cs.add_descriptor("offset", make_argument('offset', [0,.2,.4,.6,.8,1.0]))
 
     #associate control points wlth parameters of the data store
     g = vtk_explorers.Clip('offset', clip)
@@ -118,10 +118,10 @@ def test_pv_slice(fname):
     #make or open a cinema data store to put results in
     cs = FileStore(fname)
     cs.filename_pattern = "{phi}_{theta}_{offset}_{color}_slice.png"
-    cs.add_descriptor("phi", make_cinema_descriptor_properties('phi', [90, 120, 140]))
-    cs.add_descriptor("theta", make_cinema_descriptor_properties('theta', [-90,-30,30,90]))
-    cs.add_descriptor("offset", make_cinema_descriptor_properties('offset', [-.4,-.2,0,.2,.4]))
-    cs.add_descriptor("color", make_cinema_descriptor_properties('color', ['yellow', 'cyan', "purple"], typechoice='list'))
+    cs.add_descriptor("phi", make_argument('phi', [90, 120, 140]))
+    cs.add_descriptor("theta", make_argument('theta', [-90,-30,30,90]))
+    cs.add_descriptor("offset", make_argument('offset', [-.4,-.2,0,.2,.4]))
+    cs.add_descriptor("color", make_argument('color', ['yellow', 'cyan', "purple"], typechoice='list'))
 
     colorChoice = pv_explorers.ColorList()
     colorChoice.AddSolidColor('yellow', [1, 1, 0])
@@ -175,10 +175,10 @@ def test_pv_contour(fname):
     #make or open a cinema data store to put results in
     cs = FileStore(fname)
     cs.filename_pattern = "{phi}_{theta}_{contour}_{color}_contour.png"
-    cs.add_descriptor("phi", make_cinema_descriptor_properties('phi', [90,120,140]))
-    cs.add_descriptor("theta", make_cinema_descriptor_properties('theta', [-90,-30,30,90]))
-    cs.add_descriptor("contour", make_cinema_descriptor_properties('contour', [50,100,150,200]))
-    cs.add_descriptor("color", make_cinema_descriptor_properties('color', ['white', 'RTData'], typechoice='list'))
+    cs.add_descriptor("phi", make_argument('phi', [90,120,140]))
+    cs.add_descriptor("theta", make_argument('theta', [-90,-30,30,90]))
+    cs.add_descriptor("contour", make_argument('contour', [50,100,150,200]))
+    cs.add_descriptor("color", make_argument('color', ['white', 'RTData'], typechoice='list'))
 
     #associate control points wlth parameters of the data store
     cam = pv_explorers.Camera([0,0,0], [0,1,0], 75.0, view_proxy) #phi,theta implied
@@ -218,11 +218,11 @@ def test_NOP(fname):
     #make or open a cinema data store to put results in
     cs = FileStore(fname)
     cs.filename_pattern = "{phi}_{theta}_{contour}_{color}_data.raw"
-    cs.add_descriptor("phi", make_cinema_descriptor_properties('phi', [90,120,140]))
-    cs.add_descriptor("theta", make_cinema_descriptor_properties('theta', [-90,-30,30,90]))
-    cs.add_descriptor("contour", make_cinema_descriptor_properties('contour', [50,100,150,200]))
-    cs.add_descriptor("color", make_cinema_descriptor_properties('color', ['white', 'RTData'], typechoice='list'))
-    cs.add_descriptor("operation", make_cinema_descriptor_properties('operation',
+    cs.add_descriptor("phi", make_argument('phi', [90,120,140]))
+    cs.add_descriptor("theta", make_argument('theta', [-90,-30,30,90]))
+    cs.add_descriptor("contour", make_argument('contour', [50,100,150,200]))
+    cs.add_descriptor("color", make_argument('color', ['white', 'RTData'], typechoice='list'))
+    cs.add_descriptor("operation", make_argument('operation',
         ['a', 'b', 'c'], typechoice='list'))
 
     #associate control points wlth parameters of the data store

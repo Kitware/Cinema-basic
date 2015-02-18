@@ -256,7 +256,7 @@ class FileStore(Store):
         return doc
 
 
-def make_cinema_parameter_properties(name, values, **kwargs):
+def make_argument(name, values, **kwargs):
     default = kwargs['default'] if 'default' in kwargs else values[0]
     typechoice = kwargs['typechoice'] if 'typechoice' in kwargs else 'range'
     label = kwargs['label'] if 'label' in kwargs else name
