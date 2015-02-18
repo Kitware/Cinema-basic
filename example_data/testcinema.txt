@@ -1,0 +1,3 @@
+https://drive.google.com/a/kitware.com/file/d/0B_7IiYwK1X_MS09sajN4ZEx5RDYzQ3ExaTgtdTduOVBrTFBB/view?usp=sharing
+
+The very small cinema store produced by IO.tests.test_vtk_clip()
