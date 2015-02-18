@@ -99,13 +99,12 @@ class Store(object):
             self.__metadata = {}
         self.__metadata.update(keyval)
 
-    def get_full_descriptor(self, desc):
-        # FIXME: bad name!!!
+    def get_complete_descriptor(self, partial_desc):
         full_desc = dict()
         for name, properties in self.parameter_list.items():
             if properties.has_key("default"):
                 full_desc[name] = properties["default"]
-        full_desc.update(desc)
+        full_desc.update(partial_desc)
         return full_desc
 
     def add_descriptor(self, name, properties):
@@ -215,7 +214,7 @@ class FileStore(Store):
 
 
     def get_filename(self, document):
-        desc = self.get_full_descriptor(document.descriptor)
+        desc = self.get_complete_descriptor(document.descriptor)
         suffix = self.filename_pattern.format(**desc)
         dirname = os.path.dirname(self.__dbfilename)
         return os.path.join(dirname, suffix)
