@@ -1,10 +1,5 @@
 """
     Module defining classes and methods for managing cinema data storage.
-
-    TODO:
-    child stores (for workbench)
-    cost data
-    expand beyond parametric-image-stack type use case
 """
 
 import sys
@@ -18,7 +13,8 @@ class Document(object):
     """
     This refers to a document in the cinema data storage. A document is
     uniquely identified by a 'descriptor'. A descriptor is a dictionary with
-    key-value pairs, where key is the component name and value is its value.
+    key-value pairs, where key is a parameter name and value is the value for
+    that particular parameter.
 
     A document can have arbitrary meta-data (as 'attributes') and data (as
     'data') associated with it.
@@ -68,7 +64,7 @@ class Store(object):
     key' in database terminology.
 
     One can define the components for descriptors for documents in a Store on
-    the store itself. This is referred to as 'descriptor_definition'. One can
+    the store itself. This is referred to as 'parameter_list'. One can
     use 'add_descriptor()' calls to add new descriptor definitions for a new
     store instance.
 
@@ -79,16 +75,16 @@ class Store(object):
 
     def __init__(self):
         self.__metadata = None #better name is view hints
-        self.__descriptor_definition = {}
+        self.__parameter_list = {}
         self.__loaded = False
 
     @property
-    def descriptor_definition(self):
-        return self.__descriptor_definition
+    def parameter_list(self):
+        return self.__parameter_list
 
-    def _set_descriptor_definition(self, val):
+    def _set_parameter_list(self, val):
         """For use by subclasses alone"""
-        self.__descriptor_definition = val
+        self.__parameter_list = val
 
     @property
     def metadata(self):
@@ -106,7 +102,7 @@ class Store(object):
     def get_full_descriptor(self, desc):
         # FIXME: bad name!!!
         full_desc = dict()
-        for name, properties in self.descriptor_definition.items():
+        for name, properties in self.parameter_list.items():
             if properties.has_key("default"):
                 full_desc[name] = properties["default"]
         full_desc.update(desc)
@@ -123,10 +119,10 @@ class Store(object):
         #if self.__loaded:
         #    raise RuntimeError("Updating descriptors after loading/creating a store is not supported.")
         properties = self.validate_descriptor(name, properties)
-        self.__descriptor_definition[name] = properties
+        self.__parameter_list[name] = properties
 
     def get_descriptor_properties(self, name):
-        return self.__descriptor_definition[name]
+        return self.__parameter_list[name]
 
     def validate_descriptor(self, name, properties):
         """Validates a  new descriptor and return updated descriptor properties.
@@ -167,14 +163,14 @@ class FileStore(Store):
         super(FileStore, self).load()
         with open(self.__dbfilename, mode="rb") as file:
             info_json = json.load(file)
-            self._set_descriptor_definition(info_json['arguments'])
+            self._set_parameter_list(info_json['arguments'])
             self.metadata = info_json['metadata']
             self.__filename_pattern = info_json['name_pattern']
 
     def save(self):
         """ writes out a modified file store """
         info_json = dict(
-                arguments = self.descriptor_definition,
+                arguments = self.parameter_list,
                 name_pattern = self.filename_pattern,
                 metadata = self.metadata
                 )
@@ -235,7 +231,7 @@ class FileStore(Store):
         p = q
 
         # build a file name match pattern based on the query.
-        for name, properties in self.descriptor_definition.items():
+        for name, properties in self.parameter_list.items():
             if not name in q:
                 p[name] = "*"
         dirname = os.path.dirname(self.__dbfilename)
