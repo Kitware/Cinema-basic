@@ -4,14 +4,15 @@ import itertools
 class Explorer(object):
     """
     Middleman that connects an arbitrary producing codes to the CinemaStore.
-    The purpose of this class is to run through the argument sets, and tell a
-    set of tracks (in order) to do something with the arguments it cares about.
+    The purpose of this class is to run through the parameter sets, and tell a
+    set of tracks (in order) to do something with the parameter values
+    it cares about.
     """
 
     def __init__(self,
         cinema_store,
         parameters, #these are the things that this explorer is responsible for and their ranges
-        tracks #the thing we pass off values to to do the work
+        tracks #the things we pass off values to in order to do the work
         ):
 
         self.__cinema_store = cinema_store

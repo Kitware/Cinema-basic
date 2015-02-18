@@ -53,19 +53,21 @@ class Document(object):
         self.__data = val
 
 class Store(object):
-    """Base class for a cinema store. This class is an abstract class defining
-    the API and storage independent logic. Storage specific subclasses handle
-    the 'database' access.
+    """Base class for a cinema store. A store is a collection of Documents,
+    with API to add, find, and access them.
+
+    This class is an abstract class defining the API and storage independent
+    logic. Storage specific subclasses handle the 'database' access.
 
     The design of cinema store is based on the following principles:
 
-    The store comprises of documents (Document instances). Each document has an
-    unique descriptor associated with it. This can be thought of as the 'unique
-    key' in database terminology.
+    The store comprises of documents (Document instances). Each document has a
+    unique set of parameters, aka a "descriptor" associated with it. This
+    can be thought of as the 'unique key' in database terminology.
 
-    One can define the components for descriptors for documents in a Store on
-    the store itself. This is referred to as 'parameter_list'. One can
-    use 'add_parameter()' calls to add new parameter definitions for a new
+    One defines the parameters (contents of the descriptor) for documents
+    on the store itself. The set of them is is referred to as 'parameter_list'.
+    One uses 'add_parameter()' calls to add new parameter definitions for a new
     store instance.
 
     Users insert documents in the store using 'insert'. One can find
@@ -148,7 +150,7 @@ class Store(object):
         raise RuntimeError("Subclasses must define this method")
 
     def get_image_type(self):
-        return ".png"
+        return None
 
 class FileStore(Store):
     """Implementation of a store based on files and directories"""
@@ -164,6 +166,8 @@ class FileStore(Store):
         super(FileStore, self).load()
         with open(self.__dbfilename, mode="rb") as file:
             info_json = json.load(file)
+            #for legacy reasons, the parameters are called
+            #arguments" in the files
             self._set_parameter_list(info_json['arguments'])
             self.metadata = info_json['metadata']
             self.__filename_pattern = info_json['name_pattern']
@@ -188,6 +192,14 @@ class FileStore(Store):
 
     @property
     def filename_pattern(self):
+        """
+        Files corresponding to Documents are arranged on disk
+        according the the directory and filename structure described
+        by the filename_pattern. The format is a regular expression
+        consisting of parameter names enclosed in '{' and '}' and
+        separated by spacers. "/" spacer characters produce sub
+        directories.
+        """
         return self.__filename_pattern
 
     @filename_pattern.setter
@@ -222,7 +234,8 @@ class FileStore(Store):
         return os.path.join(dirname, suffix)
 
     def find(self, q=None):
-        """Currently support empty query or direct values queries e.g.
+        """
+        Currently support empty query or direct values queries e.g.
         for doc in store.find({'phi': 0}):
             print doc.data
         for doc in store.find({'phi': 0, 'theta': 100}):
@@ -256,7 +269,7 @@ class FileStore(Store):
         return doc
 
 
-def make_argument(name, values, **kwargs):
+def make_parameter(name, values, **kwargs):
     default = kwargs['default'] if 'default' in kwargs else values[0]
     typechoice = kwargs['typechoice'] if 'typechoice' in kwargs else 'range'
     label = kwargs['label'] if 'label' in kwargs else name
