@@ -133,8 +133,8 @@ def test_pv_slice(fname):
     filt = pv_explorers.Slice("offset", sliceFilt)
     col = pv_explorers.Color("color", colorChoice, sliceRep)
 
-    args = ["phi","theta","offset","color"]
-    e = pv_explorers.ImageExplorer(cs, args, [cam, filt, col])
+    params = ["phi","theta","offset","color"]
+    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col])
     #run through all parameter combinations and put data into the store
     e.explore()
     del view_proxy
@@ -190,8 +190,8 @@ def test_pv_contour(fname):
 )
     col = pv_explorers.Color("color", colorChoice, sliceRep)
 
-    args = ["phi","theta","contour","color"]
-    e = pv_explorers.ImageExplorer(cs, args, [cam, filt, col])
+    params = ["phi","theta","contour","color"]
+    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col])
 
     #run through all parameter combinations and put data into the store
     e.explore()
@@ -249,8 +249,8 @@ def test_NOP(fname):
 
     op = testEE()
 
-    args = ["phi","theta","contour","color","operation"]
-    e = explorers.Explorer(cs, args, [cam, filt, col, op])
+    params = ["phi","theta","contour","color","operation"]
+    e = explorers.Explorer(cs, params, [cam, filt, col, op])
 
     #run through all parameter combinations and put data into the store
     e.explore()

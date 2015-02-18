@@ -4,9 +4,9 @@ import paraview.simple as simple
 
 class ImageExplorer(explorers.Explorer):
     def __init__(self,
-                cinema_store, arguments, tracks,
+                cinema_store, parameters, tracks,
                 view=None):
-        super(ImageExplorer, self).__init__(cinema_store, arguments, tracks)
+        super(ImageExplorer, self).__init__(cinema_store, parameters, tracks)
         self.view = view
 
     def insert(self, document):

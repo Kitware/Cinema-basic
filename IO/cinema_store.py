@@ -65,7 +65,7 @@ class Store(object):
 
     One can define the components for descriptors for documents in a Store on
     the store itself. This is referred to as 'parameter_list'. One can
-    use 'add_descriptor()' calls to add new descriptor definitions for a new
+    use 'add_parameter()' calls to add new parameter definitions for a new
     store instance.
 
     Users insert documents in the store using 'insert'. One can find
@@ -107,24 +107,26 @@ class Store(object):
         full_desc.update(partial_desc)
         return full_desc
 
-    def add_descriptor(self, name, properties):
-        """Add a descriptor.
+    def add_parameter(self, name, properties):
+        """Add a parameter.
 
-        :param name: Name for the descriptor.
+        :param name: Name for the parameter.
 
         :param properties: Keyword arguments can be used to associate miscellaneous
-        meta-data with this descriptor.
+        meta-data with this parameter.
         """
         #if self.__loaded:
-        #    raise RuntimeError("Updating descriptors after loading/creating a store is not supported.")
-        properties = self.validate_descriptor(name, properties)
+        #    raise RuntimeError("Updating parameters after loading/creating a store is not supported.")
+        # TODO: except when it is, in the important case of adding new time steps to a collection
+        # probably can only add safely to outermost parameter (loop)
+        properties = self.validate_parameter(name, properties)
         self.__parameter_list[name] = properties
 
-    def get_descriptor_properties(self, name):
+    def get_parameter_properties(self, name):
         return self.__parameter_list[name]
 
-    def validate_descriptor(self, name, properties):
-        """Validates a  new descriptor and return updated descriptor properties.
+    def validate_parameter(self, name, properties):
+        """Validates a  new parameter and return updated parameter properties.
         Subclasses should override this as needed.
         """
         return properties
@@ -254,7 +256,7 @@ class FileStore(Store):
         return doc
 
 
-def make_cinema_descriptor_properties(name, values, **kwargs):
+def make_cinema_parameter_properties(name, values, **kwargs):
     default = kwargs['default'] if 'default' in kwargs else values[0]
     typechoice = kwargs['typechoice'] if 'typechoice' in kwargs else 'range'
     label = kwargs['label'] if 'label' in kwargs else name

@@ -19,8 +19,8 @@ class Clip(explorers.Track):
 
 class ImageExplorer(explorers.Explorer):
 
-    def __init__(self, cinema_store, arguments, engines, rw):
-        super(ImageExplorer, self).__init__(cinema_store, arguments, engines)
+    def __init__(self, cinema_store, parameters, engines, rw):
+        super(ImageExplorer, self).__init__(cinema_store, parameters, engines)
         self.rw = rw
         self.w2i = vtk.vtkWindowToImageFilter()
         self.w2i.SetInput(self.rw)
