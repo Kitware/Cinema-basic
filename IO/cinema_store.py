@@ -79,6 +79,7 @@ class Store(object):
         self.__metadata = None #better name is view hints
         self.__parameter_list = {}
         self.__loaded = False
+        self.__parameter_associations = {}
 
     @property
     def parameter_list(self):
@@ -87,6 +88,14 @@ class Store(object):
     def _set_parameter_list(self, val):
         """For use by subclasses alone"""
         self.__parameter_list = val
+
+    @property
+    def parameter_associations(self):
+        return self.__parameter_associations
+
+    def _set_parameter_associations(self, val):
+        """For use by subclasses alone"""
+        self.__parameter_associations = val
 
     @property
     def metadata(self):
@@ -152,6 +161,21 @@ class Store(object):
     def get_image_type(self):
         return None
 
+    def assign_parameter_dependence(self, dep_param, param, on_values):
+        """
+        mark a particular parameter as being explorable only for a subset
+        of the possible values of another.
+
+        For example given parameter 'appendage type' which might have
+        value 'foot' or 'flipper', a dependent parameter might be 'shoe type'
+        which only makes sense for 'feet'. More to the point we use this
+        for 'layers' and 'fields' in composite rendering of objects in a scene
+        and the color settings that each object is allowed to take.
+        """
+        self.__parameter_associations.setdefault(dep_param, {}).update(
+        {param: on_values})
+
+
 class FileStore(Store):
     """Implementation of a store based on files and directories"""
 
@@ -171,13 +195,15 @@ class FileStore(Store):
             self._set_parameter_list(info_json['arguments'])
             self.metadata = info_json['metadata']
             self.filename_pattern = info_json['name_pattern']
+            self._set_parameter_associations(info_json['associations'])
 
     def save(self):
         """ writes out a modified file store """
         info_json = dict(
                 arguments = self.parameter_list,
                 name_pattern = self.filename_pattern,
-                metadata = self.metadata
+                metadata = self.metadata,
+                associations = self.parameter_associations
                 )
         dirname = os.path.dirname(self.__dbfilename)
         if not os.path.exists(dirname):
@@ -219,7 +245,6 @@ class FileStore(Store):
 
     def insert(self, document):
         super(FileStore, self).insert(document)
-
         fname = self.get_filename(document)
         dirname = os.path.dirname(fname)
         if not os.path.exists(dirname):
@@ -228,16 +253,11 @@ class FileStore(Store):
             with open(fname, mode='w') as file:
                 file.write(document.data)
 
-        #with open(fname + ".__data__", mode="w") as file:
-        #    info_json = dict(
-        #            descriptor = document.descriptor,
-        #            attributes = document.attributes)
-        #    json.dump(info_json, file)
-
-
     def get_filename(self, document):
         desc = self.get_complete_descriptor(document.descriptor)
         suffix = self.filename_pattern.format(**desc)
+        if hasattr(document, 'extension'):
+            suffix = suffix[:suffix.rfind(".")] + document.extension
         dirname = os.path.dirname(self.__dbfilename)
         return os.path.join(dirname, suffix)
 
@@ -269,18 +289,7 @@ class FileStore(Store):
                 if fnmatch(doc_file, match_pattern):
                     yield self.load_image(doc_file)
 
-    # def load_document(self, doc_file):
-    #    with open(doc_file + ".__data__", "r") as file:
-    #        info_json = json.load(file)
-    #    with open(doc_file, "r") as file:
-    #        data = file.read()
-    #    doc = Document(info_json["descriptor"], data)
-    #    doc.attributes = info_json["attributes"]
-    #    return doc
-
     def load_image(self, doc_file):
-        #with open(doc_file + ".__data__", "r") as file:
-        #    info_json = json.load(file)
         with open(doc_file, "r") as file:
             data = file.read()
         # convert filename into a list of values
@@ -296,7 +305,7 @@ def make_parameter(name, values, **kwargs):
     typechoice = kwargs['typechoice'] if 'typechoice' in kwargs else 'range'
     label = kwargs['label'] if 'label' in kwargs else name
 
-    types = ['list','range']
+    types = ['list','range','option']
     if not typechoice in types:
         raise RuntimeError, "Invalid typechoice, must be on of %s" % str(types)
     if not default in values:

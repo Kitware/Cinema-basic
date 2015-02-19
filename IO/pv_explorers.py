@@ -21,10 +21,26 @@ class ImageExplorer(explorers.Explorer):
     def insert(self, document):
         # FIXME: for now we'll write a temporary image and read that in.
         # we need to provide nicer API for this.
-        extension = self.cinema_store.get_image_type()
-        simple.WriteImage("temporary"+extension, view=self.view)
-        with open("temporary"+extension, "rb") as file:
-            document.data = file.read()
+        if 'color' in document.descriptor and document.descriptor['color'] == 'depth':
+            #import paraview.vtk as vtk
+            import vtk
+            rw = simple.GetActiveView().GetRenderWindow()
+            w2i = vtk.vtkWindowToImageFilter()
+            w2i.SetInputBufferTypeToZBuffer()
+            w2i.SetInput(rw)
+            w2i.Update()
+            writer = vtk.vtkDataSetWriter()
+            writer.SetInputConnection(w2i.GetOutputPort())
+            writer.SetFileName("temporary.vtk")
+            writer.Write()
+            with open("temporary.vtk") as file:
+                document.data = file.read()
+                document.extension = ".vtk"
+        else:
+            extension = self.cinema_store.get_image_type()
+            simple.WriteImage("temporary"+extension, view=self.view)
+            with open("temporary"+extension, "rb") as file:
+                document.data = file.read()
 
         #alternatively if you are just writing out files and don't need them in memory
         ##fn = self.cinema_store.get_filename(document)
@@ -144,8 +160,8 @@ class Templated(explorers.Track):
 
 class ColorList():
     """
-    A helper that creates a dictionary of color controls for ParaView. The Color engine takes in
-    a Color name from the Explorer and looks up into a ColorList to determine exactly what
+    A helper that creates a dictionary of color controls for ParaView. The Color track takes in
+    a color name from the Explorer and looks up into a ColorList to determine exactly what
     needs to be set to apply the color.
     """
     def __init__(self):
@@ -157,6 +173,9 @@ class ColorList():
     def AddLUT(self, name, lut):
         self._dict[name] = {'type':'lut','content':lut}
 
+    def AddDepth(self, name):
+        self._dict[name] = {'type':'depth'}
+
     def getColor(self, name):
         return self._dict[name]
 
@@ -164,7 +183,6 @@ class Color(explorers.Track):
     """
     A track that connects a parameter to a choice of surface rendered color maps.
     """
-
     def __init__(self, parameter, colorlist, rep):
         super(Color, self).__init__()
         self.parameter = parameter
@@ -180,3 +198,5 @@ class Color(explorers.Track):
         if spec['type'] == 'lut':
             self.rep.LookupTable = spec['content']
             self.rep.ColorArrayName = o
+        if spec['type'] == 'depth':
+            pass

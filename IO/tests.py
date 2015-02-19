@@ -4,9 +4,9 @@ This module tests the generic interface to cinema data.
 
 from cinema_store import *
 
-#import sys
-#sys.path.append("/Builds/ParaView/devel/master_debug/lib")
-#sys.path.append("/Builds/ParaView/devel/master_debug/lib/site-packages")
+import sys
+sys.path.append("/Builds/ParaView/devel/master_debug/lib")
+sys.path.append("/Builds/ParaView/devel/master_debug/lib/site-packages")
 
 def demonstrate_manual_populate(fname="/tmp/demonstrate_manual_populate/info.json"):
     """Demonstrates how to setup a basic cinema store filling the data up with text"""
@@ -101,7 +101,6 @@ def test_vtk_clip(fname=None):
     #run through all parameter combinations and put data into the store
     e.explore()
     return e
-
 
 def test_pv_slice(fname):
     import explorers
@@ -256,11 +255,147 @@ def test_NOP(fname):
     e.explore()
     return e
 
+def test_layers_and_fields(fname):
+    if not fname:
+        fname = "info.json"
+    import explorers
+
+    params = ["time","layer","slice_field","back_color"]
+
+    cs = FileStore(fname)
+    cs.add_parameter("time", make_parameter("time", [0,1,2]))
+    cs.add_parameter("layer", make_parameter("layer", ['outline','slice','background']))
+    cs.add_parameter("slice_field", make_parameter("slice_field", ['solid_red', 'temperature', 'pressure']))
+    cs.add_parameter("back_color", make_parameter("back_color", ['grey0', 'grey49']))
+
+    class printDescriptor(explorers.Explorer):
+        def execute(self, desc):
+            print desc
+
+    print "NO DEPENDENCIES"
+    e = printDescriptor(cs, params, [])
+    e.explore()
+
+    print "NO DEPENDENCIES AND FIXED TIME"
+    e.explore({'time':3})
+
+    print "WITH DEPENDENCIES"
+    cs.assign_parameter_dependence('slice_field', 'layer', ['slice'])
+    cs.assign_parameter_dependence('back_color', 'layer', ['background'])
+    e.explore()
+
+    print "WITH DEPENDENCIES AND FIXED TIME"
+    e.explore({'time':3})
+
+def test_pv_composite(fname):
+    import explorers
+    import pv_explorers
+    import paraview.simple as pv
+
+    if not fname:
+        fname = "info.json"
+
+    # set up some processing task
+    view_proxy = pv.CreateRenderView()
+    s = pv.Wavelet()
+    contour = pv.Contour(Input=s, ContourBy='RTData', ComputeScalars=1 )
+    sliceRep = pv.Show(contour)
+
+    #make or open a cinema data store to put results in
+    cs = FileStore(fname)
+    cs.filename_pattern = "{phi}_{theta}_{contour}_{color}_contour.png"
+    cs.add_parameter("phi", make_parameter('phi', [90,120,140]))
+    cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
+    cs.add_parameter("contour", make_parameter('contour', [50,100,150,200], typechoice='option'))
+    cs.add_parameter("color", make_parameter('color', ['white', 'RTData', 'depth'], typechoice='list'))
+
+    #associate control points wlth parameters of the data store
+    cam = pv_explorers.Camera([0,0,0], [0,1,0], 75.0, view_proxy) #phi,theta implied
+    filt = pv_explorers.Contour("contour", contour)
+
+    colorChoice = pv_explorers.ColorList()
+    colorChoice.AddSolidColor('white', [1,1,1])
+    colorChoice.AddLUT('RTData', pv.GetLookupTableForArray
+                       ( "RTData", 1,
+                         RGBPoints=[43.34006881713867, 0.23, 0.299, 0.754, 160.01158714294434, 0.865, 0.865, 0.865, 276.68310546875, 0.706, 0.016, 0.15] ))
+    colorChoice.AddDepth('depth')
+
+    col = pv_explorers.Color("color", colorChoice, sliceRep)
+
+    params = ["phi","theta","contour","color"]
+    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col])
+
+    #run through all parameter combinations and put data into the store
+    e.explore()
+
+    pv.Delete(s)
+    pv.Delete(contour)
+    pv.Delete(view_proxy)
+    return e
+
+
+def test_vtk_contour(fname=None):
+    import explorers
+    import vtk_explorers
+    import vtk
+
+    if not fname:
+        fname = "info.json"
+
+    # set up some processing task
+    s = vtk.vtkRTAnalyticSource()
+    s.SetWholeExtent(-50,50,-50,50,-50,50)
+    cf = vtk.vtkContourFilter()
+    cf.SetInputConnection(s.GetOutputPort())
+    cf.SetInputArrayToProcess(0,0,0, "vtkDataObject::FIELD_ASSOCIATION_POINTS", "RTData")
+    cf.SetNumberOfContours(1)
+    cf.SetValue(0, 100)
+
+    m = vtk.vtkPolyDataMapper()
+    m.SetInputConnection(cf.GetOutputPort())
+
+    rw = vtk.vtkRenderWindow()
+    r = vtk.vtkRenderer()
+    rw.AddRenderer(r)
+
+    a = vtk.vtkActor()
+    a.SetMapper(m)
+    r.AddActor(a)
+
+    rw.Render()
+    r.ResetCamera()
+
+    #make or open a cinema data store to put results in
+    cs = FileStore(fname)
+    cs.filename_pattern = "{contour}_{color}.png"
+    cs.add_parameter("contour", make_parameter('contour', [0,25,50,75,100,125,150,175,200,225,250]))
+    cs.add_parameter("color", make_parameter('color', ['white','red']))
+    cs.add_parameter("mode", make_parameter('mode', ['color','depth']))
+
+    colorChoice = vtk_explorers.ColorList()
+    colorChoice.AddSolidColor('white', [1,1,1])
+    colorChoice.AddSolidColor('red', [1,0,0])
+
+    #associate control points wlth parameters of the data store
+    g = vtk_explorers.Contour('contour', cf, 'SetValue')
+    c = vtk_explorers.Color('color', colorChoice, a)
+    d = vtk_explorers.Depth('mode')
+    e = vtk_explorers.ImageExplorer(cs, ['contour','color','mode'], [g,c,d], rw)
+    d.imageExplorer = e
+
+    #run through all parameter combinations and put data into the store
+    e.explore()
+    return e
+
+
 if __name__ == "__main__":
     test_store()
-    demonstrate_populate()
-    demonstrate_analyze()
-    test_pv_slice("/tmp/pv_slice_data/info.json")
-    test_vtk_clip("/tmp/vtk_clip_data/info.json")
-    test_pv_contour("/tmp/pv_contour/info.json")
-    test_NOP("/tmp/nop/info.json")
+    #demonstrate_populate()
+    #demonstrate_analyze()
+    #test_pv_slice("/tmp/pv_slice_data/info.json")
+    #test_vtk_clip("/tmp/vtk_clip_data/info.json")
+    #test_pv_contour("/tmp/pv_contour/info.json")
+    #test_NOP("/tmp/nop/info.json")
+    #test_layers_and_fields("/tmp/laf/info.json")
+    #test_pv_composite("/tmp/pv_composite/info.json")
+    test_vtk_contour("/tmp/vtk_contour_data/info.json")
