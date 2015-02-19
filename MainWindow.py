@@ -1,11 +1,11 @@
 from PySide import QtCore
 from PySide.QtCore import *
 from PySide.QtGui import *
-#from PySide.QtUiTools import *
 
 import PIL.ImageFile
 
 from QDisplayLabel import *
+from RenderViewMouseInteractor import *
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -28,10 +28,16 @@ class MainWindow(QMainWindow):
 
         self.createMenus()
 
+        # Set up render view interactor
+        self._mouseInteractor = RenderViewMouseInteractor()
+
         # Connect signals and slots
-        self._displayWidget.mousePressSignal.connect(self.onMousePress)
-        self._displayWidget.mouseMoveSignal.connect(self.onMouseMove)
-        self._displayWidget.mouseReleaseSignal.connect(self.onMouseRelease)
+        self._displayWidget.mousePressSignal.connect(self._mouseInteractor.onMousePress)
+        self._displayWidget.mouseMoveSignal.connect(self._mouseInteractor.onMouseMove)
+        self._displayWidget.mouseReleaseSignal.connect(self._mouseInteractor.onMouseRelease)
+
+        # Render any time the mouse is moved
+        self._displayWidget.mouseMoveSignal.connect(self.render)
 
     # Create the menu bars
     def createMenus(self):
@@ -45,6 +51,9 @@ class MainWindow(QMainWindow):
     def setStore(self, store):
         self._store = store
         self._initializeCurrentQuery()
+
+        self._mouseInteractor.setPhiValues(store.parameter_list['phi']['values'])
+        self._mouseInteractor.setThetaValues(store.parameter_list['theta']['values'])
 
         # Display the default image
         doc = self._store.find(dict(self._currentQuery)).next()
@@ -94,7 +103,17 @@ class MainWindow(QMainWindow):
         propertyValue = dd[propertyName]['values'][sliderIndex]
         self._currentQuery[propertyName] = propertyValue
 
-        # Retrieve image form data store with the current query. Only
+        self.render()
+
+    # Query the image store and display the retrieved image
+    def render(self):
+        # Set the camera settings if available
+        phi   = self._mouseInteractor.getPhi()
+        theta = self._mouseInteractor.getTheta()
+        self._currentQuery['phi']   = phi
+        self._currentQuery['theta'] = theta
+
+        # Retrieve image from data store with the current query. Only
         # care about the first - there should be only one if we have
         # correctly specified all the properties.
         docs = [doc for doc in self._store.find(self._currentQuery)]
@@ -122,15 +141,3 @@ class MainWindow(QMainWindow):
     # Set the image displayed from a QPixmap
     def setPixmap(self, pixmap):
         self._displayWidget.setPixmap(pixmap)
-
-    @QtCore.Slot(int,int)
-    def onMousePress(self, x, y):
-        print "press:", x, y
-
-    @QtCore.Slot(int,int)
-    def onMouseMove(self, x, y):
-        print "move:", x, y
-
-    @QtCore.Slot(int,int)
-    def onMouseRelease(self, x, y):
-        print "release:", x, y
