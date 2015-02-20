@@ -23,7 +23,9 @@ class MainWindow(QMainWindow):
         self._displayWidget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
         self._displayWidget.setText("None")
         self._parametersWidget = QWidget(self)
-        self._parametersWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        parametersWidgetSize = QSize(200, 100)
+        self._parametersWidget.setMinimumSize(parametersWidgetSize)
+        self._parametersWidget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.MinimumExpanding)
         self._mainWidget.addWidget(self._displayWidget)
         self._mainWidget.addWidget(self._parametersWidget)
 
@@ -228,6 +230,9 @@ class MainWindow(QMainWindow):
         imageString = pimg.convert('RGBA').tostring('raw', 'BGRA')
         qimg = QImage(imageString, pimg.size[0], pimg.size[1], QImage.Format_ARGB32)
         pix = QPixmap.fromImage(qimg)
+
+        # Try to resize the display widget
+        self._displayWidget.sizeHint = pix.size
 
         # Resize pixmap to fill the screen
         size = self._displayWidget.size()

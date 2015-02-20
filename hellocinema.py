@@ -25,7 +25,6 @@ app = QApplication(sys.argv)
 # set up UI
 from MainWindow import *
 mainWindow = MainWindow()
-
 mainWindow.setStore(cs)
 mainWindow.show()
 
