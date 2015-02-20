@@ -19,12 +19,14 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._mainWidget)
 
         self._displayWidget = QDisplayLabel(self)
-        self._propertiesWidget = QWidget(self)
+        self._displayWidget.setAlignment(Qt.AlignCenter)
+        self._parametersWidget = QWidget(self)
+        self._parametersWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         self._mainWidget.addWidget(self._displayWidget)
-        self._mainWidget.addWidget(self._propertiesWidget)
+        self._mainWidget.addWidget(self._parametersWidget)
 
         layout = QVBoxLayout()
-        self._propertiesWidget.setLayout(layout)
+        self._parametersWidget.setLayout(layout)
 
         self.createMenus()
 
@@ -93,20 +95,31 @@ class MainWindow(QMainWindow):
             self._currentQuery[name] = dd[name]['default']
 
     # Create property UI
-    def createPropertyUI(self):
+    def createParameterUI(self):
         dd = self._store.parameter_list
         for name, properties in dd.items():
+            labelValueWidget = QWidget(self)
+            labelValueWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+            labelValueWidget.setLayout(QHBoxLayout())
+            self._parametersWidget.layout().addWidget(labelValueWidget)
+
             textLabel = QLabel(properties['label'], self)
-            self._propertiesWidget.layout().addWidget(textLabel)
+            labelValueWidget.layout().addWidget(textLabel)
+
+            valueLabel = QLabel('0', self)
+            valueLabel.setAlignment(Qt.AlignRight)
+            valueLabel.setObjectName(name + "ValueLabel")
+            labelValueWidget.layout().addWidget(valueLabel)
+
             slider = QSlider(Qt.Horizontal, self)
             slider.setObjectName(name)
-            self._propertiesWidget.layout().addWidget(slider);
+            self._parametersWidget.layout().addWidget(slider);
 
             # Configure the slider
             self.configureSlider(slider, properties)
             self._updateSlider(properties['label'], properties['default'])
 
-        self._propertiesWidget.layout().addStretch()
+        self._parametersWidget.layout().addStretch()
 
     # Convenience function for setting up a slider
     def configureSlider(self, slider, properties):
@@ -123,19 +136,40 @@ class MainWindow(QMainWindow):
 
     # Respond to a slider movement
     def onSliderMoved(self):
-        propertyName = self.sender().objectName()
+        parameterName = self.sender().objectName()
         sliderIndex = self.sender().value()
-        dd = self._store.parameter_list
-        propertyValue = dd[propertyName]['values'][sliderIndex]
-        self._currentQuery[propertyName] = propertyValue
+        pl = self._store.parameter_list
+        parameterValue = pl[parameterName]['values'][sliderIndex]
+        self._currentQuery[parameterName] = parameterValue
+
+        # Update value label
+        valueLabel = self._parametersWidget.findChild(QLabel, parameterName + "ValueLabel")
+        valueLabel.setText(self._formatText(parameterValue))
 
         self.render()
+
+    # Format string from number
+    def _formatText(self, value):
+        try:
+            intValue = int(value)
+            return '{0}'.format(intValue)
+        except:
+            pass
+
+        try:
+            floatValue = float(value)
+            return '{0}'.format(floatValue)
+        except:
+            pass
+
+        # String
+        return value
 
     # Update slider from value
     def _updateSlider(self, parameterName, value):
         pl = self._store.parameter_list
         index = pl[parameterName]['values'].index(value)
-        slider = self._propertiesWidget.findChild(QSlider, parameterName)
+        slider = self._parametersWidget.findChild(QSlider, parameterName)
         slider.setValue(index)
 
     # Initialize the angles for the camera
@@ -171,6 +205,7 @@ class MainWindow(QMainWindow):
             self.displayDocument(docs[0])
         else:
             self._displayWidget.setPixmap(None)
+            self._displayWidget.setAlignment(Qt.AlignCenter)
             self._displayWidget.setText('No Image Found')
 
     # Get the main widget

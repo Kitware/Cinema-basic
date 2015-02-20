@@ -24,10 +24,10 @@ app = QApplication(sys.argv)
 
 # set up UI
 from MainWindow import *
-mainWindow = MainWindow('MainWindow.ui')
+mainWindow = MainWindow()
 
 mainWindow.setStore(cs)
-mainWindow.createPropertyUI()
+mainWindow.createParameterUI()
 mainWindow.show()
 
 # Enter Qt application main loop
