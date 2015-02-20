@@ -9,6 +9,7 @@ class QDisplayLabel(QLabel):
     mousePressSignal = Signal((int,int,))
     mouseMoveSignal = Signal((int,int,))
     mouseReleaseSignal = Signal((int,int,))
+    resizeEventSignal = Signal((QSize,))
 
     def __init__(self, parent=None):
         super(QDisplayLabel, self).__init__(parent)
@@ -20,4 +21,7 @@ class QDisplayLabel(QLabel):
         self.mouseMoveSignal.emit(mouseEvent.x(), mouseEvent.y())
 
     def mouseReleaseEvent(self, mouseEvent):
-        self.mouseReleaseSignal.emit
+        self.mouseReleaseSignal.emit(mouseEvent.x(), mouseEvent.y())
+
+    def resizeEvent(self, event):
+        self.resizeEventSignal.emit(event.size())
