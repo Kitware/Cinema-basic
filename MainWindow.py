@@ -20,6 +20,8 @@ class MainWindow(QMainWindow):
 
         self._displayWidget = QDisplayLabel(self)
         self._displayWidget.setAlignment(Qt.AlignCenter)
+        self._displayWidget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
+        self._displayWidget.setText("None")
         self._parametersWidget = QWidget(self)
         self._parametersWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         self._mainWidget.addWidget(self._displayWidget)
@@ -32,6 +34,9 @@ class MainWindow(QMainWindow):
 
         # Set up render view interactor
         self._mouseInteractor = RenderViewMouseInteractor()
+
+        # Connect window resize event
+        self._displayWidget.resizeEventSignal.connect(self.render)
 
     # Create the menu bars
     def createMenus(self):
@@ -223,7 +228,12 @@ class MainWindow(QMainWindow):
         imageString = pimg.convert('RGBA').tostring('raw', 'BGRA')
         qimg = QImage(imageString, pimg.size[0], pimg.size[1], QImage.Format_ARGB32)
         pix = QPixmap.fromImage(qimg)
-        self.setPixmap(pix)
+
+        # Resize pixmap to fill the screen
+        size = self._displayWidget.size()
+        scaledPixmap = pix.scaled(size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+        self.setPixmap(scaledPixmap)
 
     # Set the image displayed from a QPixmap
     def setPixmap(self, pixmap):
