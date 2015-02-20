@@ -32,12 +32,13 @@ class MainWindow(QMainWindow):
         self._mouseInteractor = RenderViewMouseInteractor()
 
         # Connect signals and slots
+        self._displayWidget.mousePressSignal.connect(self._initializeCamera)
         self._displayWidget.mousePressSignal.connect(self._mouseInteractor.onMousePress)
         self._displayWidget.mouseMoveSignal.connect(self._mouseInteractor.onMouseMove)
         self._displayWidget.mouseReleaseSignal.connect(self._mouseInteractor.onMouseRelease)
 
-        # Render any time the mouse is moved
-        self._displayWidget.mouseMoveSignal.connect(self.render)
+        # Update camera phi-theta if mouse is dragged
+        self._displayWidget.mouseMoveSignal.connect(self._updateCameraAngle)
 
     # Create the menu bars
     def createMenus(self):
@@ -79,6 +80,7 @@ class MainWindow(QMainWindow):
 
             # Configure the slider
             self.configureSlider(slider, properties)
+            self._updateSlider(properties['label'], properties['default'])
 
         self._propertiesWidget.layout().addStretch()
 
@@ -105,14 +107,34 @@ class MainWindow(QMainWindow):
 
         self.render()
 
-    # Query the image store and display the retrieved image
-    def render(self):
+    # Update slider from value
+    def _updateSlider(self, parameterName, value):
+        pl = self._store.parameter_list
+        index = pl[parameterName]['values'].index(value)
+        slider = self._propertiesWidget.findChild(QSlider, parameterName)
+        slider.setValue(index)
+
+    # Initialize the angles for the camera
+    def _initializeCamera(self):
+        self._mouseInteractor.setPhi(self._currentQuery['phi'])
+        self._mouseInteractor.setTheta(self._currentQuery['theta'])
+
+    # Update the camera angle
+    def _updateCameraAngle(self):
         # Set the camera settings if available
         phi   = self._mouseInteractor.getPhi()
         theta = self._mouseInteractor.getTheta()
         self._currentQuery['phi']   = phi
         self._currentQuery['theta'] = theta
 
+        # Update the sliders for phi and theta
+        self._updateSlider('phi', phi)
+        self._updateSlider('theta', theta)
+
+        self.render()
+
+    # Query the image store and display the retrieved image
+    def render(self):
         # Retrieve image from data store with the current query. Only
         # care about the first - there should be only one if we have
         # correctly specified all the properties.
