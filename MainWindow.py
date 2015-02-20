@@ -19,25 +19,19 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._mainWidget)
 
         self._displayWidget = QDisplayLabel(self)
-        self._propertiesWidget = QWidget(self)
+        self._displayWidget.setAlignment(Qt.AlignCenter)
+        self._parametersWidget = QWidget(self)
+        self._parametersWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         self._mainWidget.addWidget(self._displayWidget)
-        self._mainWidget.addWidget(self._propertiesWidget)
+        self._mainWidget.addWidget(self._parametersWidget)
 
         layout = QVBoxLayout()
-        self._propertiesWidget.setLayout(layout)
+        self._parametersWidget.setLayout(layout)
 
         self.createMenus()
 
         # Set up render view interactor
         self._mouseInteractor = RenderViewMouseInteractor()
-
-        # Connect signals and slots
-        self._displayWidget.mousePressSignal.connect(self._mouseInteractor.onMousePress)
-        self._displayWidget.mouseMoveSignal.connect(self._mouseInteractor.onMouseMove)
-        self._displayWidget.mouseReleaseSignal.connect(self._mouseInteractor.onMouseRelease)
-
-        # Render any time the mouse is moved
-        self._displayWidget.mouseMoveSignal.connect(self.render)
 
     # Create the menu bars
     def createMenus(self):
@@ -52,12 +46,47 @@ class MainWindow(QMainWindow):
         self._store = store
         self._initializeCurrentQuery()
 
-        self._mouseInteractor.setPhiValues(store.parameter_list['phi']['values'])
-        self._mouseInteractor.setThetaValues(store.parameter_list['theta']['values'])
+        # Disconnect all mouse signals in case the store has no phi or theta values
+        self._disconnectMouseSignals()
+
+        if ('phi' in store.parameter_list):
+            self._mouseInteractor.setPhiValues(store.parameter_list['phi']['values'])
+
+        if ('theta' in store.parameter_list):
+            self._mouseInteractor.setThetaValues(store.parameter_list['theta']['values'])
+
+        if ('phi' in store.parameter_list or 'theta' in store.parameter_list):
+            self._connectMouseSignals()
 
         # Display the default image
         doc = self._store.find(dict(self._currentQuery)).next()
         self.displayDocument(doc)
+
+        self._createParameterUI()
+
+    # Disconnect mouse signals
+    def _disconnectMouseSignals(self):
+        try:
+            self._displayWidget.mousePressSignal.disconnect(self._initializeCamera)
+            self._displayWidget.mousePressSignal.disconnect(self._mouseInteractor.onMousePress)
+            self._displayWidget.mouseMoveSignal.disconnect(self._mouseInteractor.onMouseMove)
+            self._displayWidget.mouseReleaseSignal.disconnect(self._mouseInteractor.onMouseRelease)
+
+            # Update camera phi-theta if mouse is dragged
+            self._displayWidget.mouseMoveSignal.disconnect(self._updateCameraAngle)
+        except:
+            # No big deal if we can't disconnect
+            pass
+
+    # Connect mouse signals
+    def _connectMouseSignals(self):
+        self._displayWidget.mousePressSignal.connect(self._initializeCamera)
+        self._displayWidget.mousePressSignal.connect(self._mouseInteractor.onMousePress)
+        self._displayWidget.mouseMoveSignal.connect(self._mouseInteractor.onMouseMove)
+        self._displayWidget.mouseReleaseSignal.connect(self._mouseInteractor.onMouseRelease)
+
+        # Update camera phi-theta if mouse is dragged
+        self._displayWidget.mouseMoveSignal.connect(self._updateCameraAngle)
 
     # Initializes image store query.
     def _initializeCurrentQuery(self):
@@ -68,19 +97,31 @@ class MainWindow(QMainWindow):
             self._currentQuery[name] = dd[name]['default']
 
     # Create property UI
-    def createPropertyUI(self):
+    def _createParameterUI(self):
         dd = self._store.parameter_list
         for name, properties in dd.items():
+            labelValueWidget = QWidget(self)
+            labelValueWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+            labelValueWidget.setLayout(QHBoxLayout())
+            self._parametersWidget.layout().addWidget(labelValueWidget)
+
             textLabel = QLabel(properties['label'], self)
-            self._propertiesWidget.layout().addWidget(textLabel)
+            labelValueWidget.layout().addWidget(textLabel)
+
+            valueLabel = QLabel('0', self)
+            valueLabel.setAlignment(Qt.AlignRight)
+            valueLabel.setObjectName(name + "ValueLabel")
+            labelValueWidget.layout().addWidget(valueLabel)
+
             slider = QSlider(Qt.Horizontal, self)
             slider.setObjectName(name)
-            self._propertiesWidget.layout().addWidget(slider);
+            self._parametersWidget.layout().addWidget(slider);
 
             # Configure the slider
             self.configureSlider(slider, properties)
+            self._updateSlider(properties['label'], properties['default'])
 
-        self._propertiesWidget.layout().addStretch()
+        self._parametersWidget.layout().addStretch()
 
     # Convenience function for setting up a slider
     def configureSlider(self, slider, properties):
@@ -97,22 +138,67 @@ class MainWindow(QMainWindow):
 
     # Respond to a slider movement
     def onSliderMoved(self):
-        propertyName = self.sender().objectName()
+        parameterName = self.sender().objectName()
         sliderIndex = self.sender().value()
-        dd = self._store.parameter_list
-        propertyValue = dd[propertyName]['values'][sliderIndex]
-        self._currentQuery[propertyName] = propertyValue
+        pl = self._store.parameter_list
+        parameterValue = pl[parameterName]['values'][sliderIndex]
+        self._currentQuery[parameterName] = parameterValue
+
+        # Update value label
+        valueLabel = self._parametersWidget.findChild(QLabel, parameterName + "ValueLabel")
+        valueLabel.setText(self._formatText(parameterValue))
+
+        self.render()
+
+    # Format string from number
+    def _formatText(self, value):
+        try:
+            intValue = int(value)
+            return '{0}'.format(intValue)
+        except:
+            pass
+
+        try:
+            floatValue = float(value)
+            return '{0}'.format(floatValue)
+        except:
+            pass
+
+        # String
+        return value
+
+    # Update slider from value
+    def _updateSlider(self, parameterName, value):
+        pl = self._store.parameter_list
+        index = pl[parameterName]['values'].index(value)
+        slider = self._parametersWidget.findChild(QSlider, parameterName)
+        slider.setValue(index)
+
+    # Initialize the angles for the camera
+    def _initializeCamera(self):
+        self._mouseInteractor.setPhi(self._currentQuery['phi'])
+        self._mouseInteractor.setTheta(self._currentQuery['theta'])
+
+    # Update the camera angle
+    def _updateCameraAngle(self):
+        # Set the camera settings if available
+        phi   = self._mouseInteractor.getPhi()
+        theta = self._mouseInteractor.getTheta()
+
+        if ('phi' in self._currentQuery):
+            self._currentQuery['phi']   = phi
+
+        if ('theta' in self._currentQuery):
+            self._currentQuery['theta'] = theta
+
+        # Update the sliders for phi and theta
+        self._updateSlider('phi', phi)
+        self._updateSlider('theta', theta)
 
         self.render()
 
     # Query the image store and display the retrieved image
     def render(self):
-        # Set the camera settings if available
-        phi   = self._mouseInteractor.getPhi()
-        theta = self._mouseInteractor.getTheta()
-        self._currentQuery['phi']   = phi
-        self._currentQuery['theta'] = theta
-
         # Retrieve image from data store with the current query. Only
         # care about the first - there should be only one if we have
         # correctly specified all the properties.
@@ -121,6 +207,7 @@ class MainWindow(QMainWindow):
             self.displayDocument(docs[0])
         else:
             self._displayWidget.setPixmap(None)
+            self._displayWidget.setAlignment(Qt.AlignCenter)
             self._displayWidget.setText('No Image Found')
 
     # Get the main widget
