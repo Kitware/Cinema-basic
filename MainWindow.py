@@ -62,6 +62,8 @@ class MainWindow(QMainWindow):
         doc = self._store.find(dict(self._currentQuery)).next()
         self.displayDocument(doc)
 
+        self._createParameterUI()
+
     # Disconnect mouse signals
     def _disconnectMouseSignals(self):
         try:
@@ -95,7 +97,7 @@ class MainWindow(QMainWindow):
             self._currentQuery[name] = dd[name]['default']
 
     # Create property UI
-    def createParameterUI(self):
+    def _createParameterUI(self):
         dd = self._store.parameter_list
         for name, properties in dd.items():
             labelValueWidget = QWidget(self)

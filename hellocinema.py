@@ -27,7 +27,6 @@ from MainWindow import *
 mainWindow = MainWindow()
 
 mainWindow.setStore(cs)
-mainWindow.createParameterUI()
 mainWindow.show()
 
 # Enter Qt application main loop
