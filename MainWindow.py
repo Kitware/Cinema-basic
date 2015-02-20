@@ -31,15 +31,6 @@ class MainWindow(QMainWindow):
         # Set up render view interactor
         self._mouseInteractor = RenderViewMouseInteractor()
 
-        # Connect signals and slots
-        self._displayWidget.mousePressSignal.connect(self._initializeCamera)
-        self._displayWidget.mousePressSignal.connect(self._mouseInteractor.onMousePress)
-        self._displayWidget.mouseMoveSignal.connect(self._mouseInteractor.onMouseMove)
-        self._displayWidget.mouseReleaseSignal.connect(self._mouseInteractor.onMouseRelease)
-
-        # Update camera phi-theta if mouse is dragged
-        self._displayWidget.mouseMoveSignal.connect(self._updateCameraAngle)
-
     # Create the menu bars
     def createMenus(self):
         # File menu
@@ -53,12 +44,45 @@ class MainWindow(QMainWindow):
         self._store = store
         self._initializeCurrentQuery()
 
-        self._mouseInteractor.setPhiValues(store.parameter_list['phi']['values'])
-        self._mouseInteractor.setThetaValues(store.parameter_list['theta']['values'])
+        # Disconnect all mouse signals in case the store has no phi or theta values
+        self._disconnectMouseSignals()
+
+        if ('phi' in store.parameter_list):
+            self._mouseInteractor.setPhiValues(store.parameter_list['phi']['values'])
+
+        if ('theta' in store.parameter_list):
+            self._mouseInteractor.setThetaValues(store.parameter_list['theta']['values'])
+
+        if ('phi' in store.parameter_list or 'theta' in store.parameter_list):
+            self._connectMouseSignals()
 
         # Display the default image
         doc = self._store.find(dict(self._currentQuery)).next()
         self.displayDocument(doc)
+
+    # Disconnect mouse signals
+    def _disconnectMouseSignals(self):
+        try:
+            self._displayWidget.mousePressSignal.disconnect(self._initializeCamera)
+            self._displayWidget.mousePressSignal.disconnect(self._mouseInteractor.onMousePress)
+            self._displayWidget.mouseMoveSignal.disconnect(self._mouseInteractor.onMouseMove)
+            self._displayWidget.mouseReleaseSignal.disconnect(self._mouseInteractor.onMouseRelease)
+
+            # Update camera phi-theta if mouse is dragged
+            self._displayWidget.mouseMoveSignal.disconnect(self._updateCameraAngle)
+        except:
+            # No big deal if we can't disconnect
+            pass
+
+    # Connect mouse signals
+    def _connectMouseSignals(self):
+        self._displayWidget.mousePressSignal.connect(self._initializeCamera)
+        self._displayWidget.mousePressSignal.connect(self._mouseInteractor.onMousePress)
+        self._displayWidget.mouseMoveSignal.connect(self._mouseInteractor.onMouseMove)
+        self._displayWidget.mouseReleaseSignal.connect(self._mouseInteractor.onMouseRelease)
+
+        # Update camera phi-theta if mouse is dragged
+        self._displayWidget.mouseMoveSignal.connect(self._updateCameraAngle)
 
     # Initializes image store query.
     def _initializeCurrentQuery(self):
@@ -124,8 +148,12 @@ class MainWindow(QMainWindow):
         # Set the camera settings if available
         phi   = self._mouseInteractor.getPhi()
         theta = self._mouseInteractor.getTheta()
-        self._currentQuery['phi']   = phi
-        self._currentQuery['theta'] = theta
+
+        if ('phi' in self._currentQuery):
+            self._currentQuery['phi']   = phi
+
+        if ('theta' in self._currentQuery):
+            self._currentQuery['theta'] = theta
 
         # Update the sliders for phi and theta
         self._updateSlider('phi', phi)
