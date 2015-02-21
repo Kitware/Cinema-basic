@@ -19,9 +19,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self._mainWidget)
 
         self._displayWidget = QDisplayLabel(self)
+        self._displayWidget.setRenderHints(QPainter.SmoothPixmapTransform)
         self._displayWidget.setAlignment(Qt.AlignCenter)
         self._displayWidget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
-        self._displayWidget.setText("None")
         self._parametersWidget = QWidget(self)
         self._parametersWidget.setMinimumSize(QSize(200, 100))
         self._parametersWidget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.MinimumExpanding)
@@ -35,9 +35,6 @@ class MainWindow(QMainWindow):
 
         # Set up render view interactor
         self._mouseInteractor = RenderViewMouseInteractor()
-
-        # Connect window resize event
-        self._displayWidget.resizeEventSignal.connect(self.render)
 
     # Create the menu bars
     def createMenus(self):
@@ -73,26 +70,36 @@ class MainWindow(QMainWindow):
     # Disconnect mouse signals
     def _disconnectMouseSignals(self):
         try:
-            self._displayWidget.mousePressSignal.disconnect(self._initializeCamera)
-            self._displayWidget.mousePressSignal.disconnect(self._mouseInteractor.onMousePress)
-            self._displayWidget.mouseMoveSignal.disconnect(self._mouseInteractor.onMouseMove)
-            self._displayWidget.mouseReleaseSignal.disconnect(self._mouseInteractor.onMouseRelease)
+            dw = self._displayWidget
+            dw.mousePressSignal.disconnect(self._initializeCamera)
+            dw.mousePressSignal.disconnect(self._mouseInteractor.onMousePress)
+            dw.mouseMoveSignal.disconnect(self._mouseInteractor.onMouseMove)
+            dw.mouseReleaseSignal.disconnect(self._mouseInteractor.onMouseRelease)
+            dw.mouseWheelSignal.disconnect(self._mouseInteractor.onMouseWheel)
 
             # Update camera phi-theta if mouse is dragged
             self._displayWidget.mouseMoveSignal.disconnect(self._updateCameraAngle)
+
+            # Update camera if mouse wheel is moved
+            self._displayWidget.mouseWheelSignal.disconnect(self._updateCameraAngle)
         except:
             # No big deal if we can't disconnect
             pass
 
     # Connect mouse signals
     def _connectMouseSignals(self):
-        self._displayWidget.mousePressSignal.connect(self._initializeCamera)
-        self._displayWidget.mousePressSignal.connect(self._mouseInteractor.onMousePress)
-        self._displayWidget.mouseMoveSignal.connect(self._mouseInteractor.onMouseMove)
-        self._displayWidget.mouseReleaseSignal.connect(self._mouseInteractor.onMouseRelease)
+        dw = self._displayWidget
+        dw.mousePressSignal.connect(self._initializeCamera)
+        dw.mousePressSignal.connect(self._mouseInteractor.onMousePress)
+        dw.mouseMoveSignal.connect(self._mouseInteractor.onMouseMove)
+        dw.mouseReleaseSignal.connect(self._mouseInteractor.onMouseRelease)
+        dw.mouseWheelSignal.connect(self._mouseInteractor.onMouseWheel)
 
         # Update camera phi-theta if mouse is dragged
         self._displayWidget.mouseMoveSignal.connect(self._updateCameraAngle)
+
+        # Update camera if mouse wheel is moved
+        self._displayWidget.mouseWheelSignal.connect(self._updateCameraAngle)
 
     # Initializes image store query.
     def _initializeCurrentQuery(self):
@@ -201,6 +208,10 @@ class MainWindow(QMainWindow):
         self._updateSlider('phi', phi)
         self._updateSlider('theta', theta)
 
+        scale = self._mouseInteractor.getScale()
+        self._displayWidget.resetTransform()
+        self._displayWidget.scale(scale, scale)
+
         self.render()
 
     # Query the image store and display the retrieved image
@@ -214,7 +225,6 @@ class MainWindow(QMainWindow):
         else:
             self._displayWidget.setPixmap(None)
             self._displayWidget.setAlignment(Qt.AlignCenter)
-            self._displayWidget.setText('No Image Found')
 
     # Get the main widget
     def mainWidget(self):
@@ -233,11 +243,7 @@ class MainWindow(QMainWindow):
         # Try to resize the display widget
         self._displayWidget.sizeHint = pix.size
 
-        # Resize pixmap to fill the screen
-        size = self._displayWidget.size()
-        scaledPixmap = pix.scaled(size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-
-        self.setPixmap(scaledPixmap)
+        self.setPixmap(pix)
 
     # Set the image displayed from a QPixmap
     def setPixmap(self, pixmap):

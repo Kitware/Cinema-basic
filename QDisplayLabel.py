@@ -4,24 +4,76 @@ from PySide.QtGui import *
 # Subclass of QLabel that emits signals for mouse events.  Emits
 # signals with the mouse position when the mouse is pressed, moved,
 # and released.
-class QDisplayLabel(QLabel):
+class QDisplayLabel(QGraphicsView):
     # Qt signals in the PySide style
-    mousePressSignal = Signal((int,int,))
-    mouseMoveSignal = Signal((int,int,))
-    mouseReleaseSignal = Signal((int,int,))
-    resizeEventSignal = Signal((QSize,))
+    mousePressSignal   = Signal(('QMouseEvent'))
+    mouseMoveSignal    = Signal(('QMouseEvent'))
+    mouseReleaseSignal = Signal(('QMouseEvent'))
+    mouseWheelSignal   = Signal(('QWheelEvent'))
 
     def __init__(self, parent=None):
         super(QDisplayLabel, self).__init__(parent)
 
+        self._scene = QGraphicsScene()
+        self.setScene(self._scene)
+        self.setDragMode(QGraphicsView.ScrollHandDrag)
+
+        self._pixmapItem = QGraphicsPixmapItem()
+        self._pixmapItem.setTransformationMode(Qt.SmoothTransformation)
+        self._scene.addItem(self._pixmapItem)
+
     def mousePressEvent(self, mouseEvent):
-        self.mousePressSignal.emit(mouseEvent.x(), mouseEvent.y())
+        self.mousePressSignal.emit(mouseEvent)
+
+        newMouseEvent =  self._remapMouseButton(mouseEvent)
+        super(QDisplayLabel, self).mousePressEvent(newMouseEvent)
 
     def mouseMoveEvent(self, mouseEvent):
-        self.mouseMoveSignal.emit(mouseEvent.x(), mouseEvent.y())
+        self.mouseMoveSignal.emit(mouseEvent)
+
+        newMouseEvent =  self._remapMouseButton(mouseEvent)
+        super(QDisplayLabel, self).mouseMoveEvent(newMouseEvent)
 
     def mouseReleaseEvent(self, mouseEvent):
-        self.mouseReleaseSignal.emit(mouseEvent.x(), mouseEvent.y())
+        self.mouseReleaseSignal.emit(mouseEvent)
 
-    def resizeEvent(self, event):
-        self.resizeEventSignal.emit(event.size())
+        newMouseEvent =  self._remapMouseButton(mouseEvent)
+        super(QDisplayLabel, self).mouseReleaseEvent(newMouseEvent)
+
+    # The default mouse mapping in QSceneWidget is to use left mouse button
+    # for panning. I want to match ParaView's mouse bindings, so remap left
+    # mouse button presses to the middle button and vice-versa here.
+    # Right mouse button is untouched.
+    def _remapMouseButton(self, mouseEvent):
+        mouseButtonMap = {}
+        mouseButtonMap[Qt.MiddleButton] = Qt.LeftButton
+        mouseButtonMap[Qt.LeftButton] = Qt.MiddleButton
+        mouseButtonMap[Qt.RightButton] = Qt.RightButton
+
+        button = mouseEvent.button()
+        buttons = mouseEvent.buttons()
+        newButton = mouseEvent.button()
+        newButtons = mouseEvent.buttons()
+
+        # Map left button to middle button
+        if (int(buttons & Qt.LeftButton)):
+            newButtons = (buttons & ~Qt.LeftButton) | Qt.MiddleButton
+        if (button == Qt.LeftButton):
+            newButton =  Qt.MiddleButton
+
+        # Map middle button to left button
+
+        if (int(buttons & Qt.MiddleButton)):
+            newButtons = (buttons & ~Qt.MiddleButton) | Qt.LeftButton
+        if (button == Qt.MiddleButton):
+            newButton = Qt.LeftButton
+
+        newMouseEvent = QMouseEvent(mouseEvent.type(), mouseEvent.pos(),
+                                    newButton, newButtons, mouseEvent.modifiers())
+        return newMouseEvent
+
+    def wheelEvent(self, event):
+        self.mouseWheelSignal.emit(event)
+
+    def setPixmap(self, pixmap):
+        self._pixmapItem.setPixmap(pixmap)
