@@ -1,14 +1,22 @@
 from PySide import QtCore
+from PySide.QtCore import *
 
 import math
 
 class RenderViewMouseInteractor():
+    NoneState   = 0
+    RotateState = 1
+    PanState    = 2
+    ZoomState   = 3
+
     def __init__(self):
+        self._state = self.NoneState
         self._xy = (0, 0)
 
         # Current camera settings
         self._phi   = 0
         self._theta = 0
+        self._scale = 1
 
         # xPhiRatio How many pixels must be dragged in x per degree change in phi.
         self.xPhiRatio   = 1 #?
@@ -43,34 +51,70 @@ class RenderViewMouseInteractor():
     def getTheta(self):
         return self._theta
 
-    @QtCore.Slot(int,int)
-    def onMousePress(self, x, y):
-        self._xy = (x, y)
+    def getScale(self):
+        return self._scale
 
-    @QtCore.Slot(int,int)
-    def onMouseMove(self, x, y):
-        dx = x - self._xy[0]
-        dy = y - self._xy[1]
+    @QtCore.Slot('QMouseEvent')
+    def onMousePress(self, mouseEvent):
+        if (mouseEvent.button() == Qt.LeftButton):
+            self._xy = (mouseEvent.x(), mouseEvent.y())
+            self._state = self.RotateState
+        elif (mouseEvent.button() == Qt.RightButton):
+            self._state = self.ZoomState
+            self._xy = (mouseEvent.x(), mouseEvent.y())
 
-        dphi   = dx / self.xPhiRatio
-        dtheta = dy / self.yThetaRatio
-        phi_sign   = 1 if dphi   > 0 else -1
-        theta_sign = 1 if dtheta > 0 else -1
+    @QtCore.Slot('QMouseEvent')
+    def onMouseMove(self, mouseEvent):
+        if (self._xy == None):
+            return
 
-        # If the phi angles are not evenly spaced, this logic won't work.
-        # Should look at angle above and below this one to make the increment decision.
-        if (math.fabs(dphi) > self._stepPhi):
-            self._phi   = self._incrementAngle(self._phi, phi_sign, self._phiValues)
-            self._xy = (x, y)
+        dx = mouseEvent.x() - self._xy[0]
+        dy = mouseEvent.y() - self._xy[1]
 
-        # The same comment for the phi update holds for the theta update.
-        if (math.fabs(dtheta) > self._stepTheta):
-            self._theta = self._incrementAngle(self._theta, theta_sign, self._thetaValues)
-            self._xy = (x, y)
+        if (self._state == self.RotateState):
+            dphi   = dx / self.xPhiRatio
+            dtheta = dy / self.yThetaRatio
+            phi_sign   = 1 if dphi   > 0 else -1
+            theta_sign = 1 if dtheta > 0 else -1
 
-    @QtCore.Slot(int,int)
-    def onMouseRelease(self, x, y):
+            # If the phi angles are not evenly spaced, this logic won't work.
+            # Should look at angle above and below this one to make the increment decision.
+            if (math.fabs(dphi) > self._stepPhi):
+                self._phi   = self._incrementAngle(self._phi, phi_sign, self._phiValues)
+                self._xy = (mouseEvent.x(), mouseEvent.y())
+
+            # The same comment for the phi update holds for the theta update.
+            if (math.fabs(dtheta) > self._stepTheta):
+                self._theta = self._incrementAngle(self._theta, theta_sign, self._thetaValues)
+                self._xy = (mouseEvent.x(), mouseEvent.y())
+
+        elif (self._state == self.ZoomState):
+            scaleFactor = 1.01
+            if (dy < 0):
+                for i in range(-dy):
+                    self._scale = self._scale * scaleFactor
+            else:
+                for i in range(dy):
+                    self._scale = self._scale * (1.0 / scaleFactor)
+            self._xy = (mouseEvent.x(), mouseEvent.y())
+
+
+    @QtCore.Slot('QMouseEvent')
+    def onMouseRelease(self, mouseEvent):
         self._xy = None
+
+    @QtCore.Slot('QWheelEvent')
+    def onMouseWheel(self, event):
+        scaleFactor = 1.01
+        # reduce the size of delta for more controllable zooming
+        dy = event.delta() / 20
+        if (dy > 0):
+            for i in range(dy):
+                self._scale = self._scale * scaleFactor
+        else:
+            for i in range(-dy):
+                self._scale = self._scale * (1.0 / scaleFactor)
+
 
     # Increment angle to be either the next or previous angle in the angle list
     def _incrementAngle(self, angle, sign, angles):
