@@ -4,7 +4,7 @@ from PySide.QtGui import *
 
 import PIL.ImageFile
 
-from QDisplayLabel import *
+from QRenderView import *
 from RenderViewMouseInteractor import *
 
 class MainWindow(QMainWindow):
@@ -18,7 +18,7 @@ class MainWindow(QMainWindow):
         self._mainWidget = QSplitter(Qt.Horizontal, self)
         self.setCentralWidget(self._mainWidget)
 
-        self._displayWidget = QDisplayLabel(self)
+        self._displayWidget = QRenderView(self)
         self._displayWidget.setRenderHints(QPainter.SmoothPixmapTransform)
         self._displayWidget.setAlignment(Qt.AlignCenter)
         self._displayWidget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
