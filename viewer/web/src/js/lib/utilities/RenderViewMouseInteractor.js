@@ -143,7 +143,7 @@
                 stepPhi = this.camera.delta('phi');
 
             if (Math.abs(dtheta) > stepTheta) {
-                this.camera.increment('theta', dtheta > 0 ? 1 : -1);
+                this.camera.increment('theta', dtheta > 0 ? 1 : -1, true);
                 this._dragStart = [payload.event.clientX, payload.event.clientY];
             }
             else if (Math.abs(dphi) > stepPhi) {
