@@ -78,10 +78,10 @@ class MainWindow(QMainWindow):
             dw.mouseWheelSignal.disconnect(self._mouseInteractor.onMouseWheel)
 
             # Update camera phi-theta if mouse is dragged
-            self._displayWidget.mouseMoveSignal.disconnect(self._updateCameraAngle)
+            self._displayWidget.mouseMoveSignal.disconnect(self._updateCamera)
 
             # Update camera if mouse wheel is moved
-            self._displayWidget.mouseWheelSignal.disconnect(self._updateCameraAngle)
+            self._displayWidget.mouseWheelSignal.disconnect(self._updateCamera)
         except:
             # No big deal if we can't disconnect
             pass
@@ -96,10 +96,10 @@ class MainWindow(QMainWindow):
         dw.mouseWheelSignal.connect(self._mouseInteractor.onMouseWheel)
 
         # Update camera phi-theta if mouse is dragged
-        self._displayWidget.mouseMoveSignal.connect(self._updateCameraAngle)
+        self._displayWidget.mouseMoveSignal.connect(self._updateCamera)
 
         # Update camera if mouse wheel is moved
-        self._displayWidget.mouseWheelSignal.connect(self._updateCameraAngle)
+        self._displayWidget.mouseWheelSignal.connect(self._updateCamera)
 
     # Initializes image store query.
     def _initializeCurrentQuery(self):
@@ -289,7 +289,7 @@ class MainWindow(QMainWindow):
         self._mouseInteractor.setTheta(self._currentQuery['theta'])
 
     # Update the camera angle
-    def _updateCameraAngle(self):
+    def _updateCamera(self):
         # Set the camera settings if available
         phi   = self._mouseInteractor.getPhi()
         theta = self._mouseInteractor.getTheta()
