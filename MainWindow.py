@@ -339,8 +339,4 @@ class MainWindow(QMainWindow):
         # Try to resize the display widget
         self._displayWidget.sizeHint = pix.size
 
-        self.setPixmap(pix)
-
-    # Set the image displayed from a QPixmap
-    def setPixmap(self, pixmap):
-        self._displayWidget.setPixmap(pixmap)
+        self._displayWidget.setPixmap(pix)
