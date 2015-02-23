@@ -4,7 +4,7 @@ from PySide.QtGui import *
 
 import PIL.ImageFile
 
-from QDisplayLabel import *
+from QRenderView import *
 from RenderViewMouseInteractor import *
 
 class MainWindow(QMainWindow):
@@ -18,7 +18,7 @@ class MainWindow(QMainWindow):
         self._mainWidget = QSplitter(Qt.Horizontal, self)
         self.setCentralWidget(self._mainWidget)
 
-        self._displayWidget = QDisplayLabel(self)
+        self._displayWidget = QRenderView(self)
         self._displayWidget.setRenderHints(QPainter.SmoothPixmapTransform)
         self._displayWidget.setAlignment(Qt.AlignCenter)
         self._displayWidget.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored)
@@ -78,10 +78,10 @@ class MainWindow(QMainWindow):
             dw.mouseWheelSignal.disconnect(self._mouseInteractor.onMouseWheel)
 
             # Update camera phi-theta if mouse is dragged
-            self._displayWidget.mouseMoveSignal.disconnect(self._updateCameraAngle)
+            self._displayWidget.mouseMoveSignal.disconnect(self._updateCamera)
 
             # Update camera if mouse wheel is moved
-            self._displayWidget.mouseWheelSignal.disconnect(self._updateCameraAngle)
+            self._displayWidget.mouseWheelSignal.disconnect(self._updateCamera)
         except:
             # No big deal if we can't disconnect
             pass
@@ -96,10 +96,10 @@ class MainWindow(QMainWindow):
         dw.mouseWheelSignal.connect(self._mouseInteractor.onMouseWheel)
 
         # Update camera phi-theta if mouse is dragged
-        self._displayWidget.mouseMoveSignal.connect(self._updateCameraAngle)
+        self._displayWidget.mouseMoveSignal.connect(self._updateCamera)
 
         # Update camera if mouse wheel is moved
-        self._displayWidget.mouseWheelSignal.connect(self._updateCameraAngle)
+        self._displayWidget.mouseWheelSignal.connect(self._updateCamera)
 
     # Initializes image store query.
     def _initializeCurrentQuery(self):
@@ -116,6 +116,7 @@ class MainWindow(QMainWindow):
             labelValueWidget = QWidget(self)
             labelValueWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
             labelValueWidget.setLayout(QHBoxLayout())
+            labelValueWidget.layout().setContentsMargins(0, 0, 0, 0)
             self._parametersWidget.layout().addWidget(labelValueWidget)
 
             textLabel = QLabel(properties['label'], self)
@@ -126,9 +127,60 @@ class MainWindow(QMainWindow):
             valueLabel.setObjectName(name + "ValueLabel")
             labelValueWidget.layout().addWidget(valueLabel)
 
+            sliderControlsWidget = QWidget(self)
+            sliderControlsWidget.setSizePolicy(QSizePolicy.MinimumExpanding,
+                                               QSizePolicy.Fixed)
+            sliderControlsWidget.setLayout(QHBoxLayout())
+            sliderControlsWidget.layout().setContentsMargins(0, 0, 0, 0)
+            #sliderControlsWidget.setContentsMargins(0, 0, 0, 0)
+            self._parametersWidget.layout().addWidget(sliderControlsWidget)
+
+            flat = False
+            width = 25
+
+            skipBackwardIcon = self.style().standardIcon(QStyle.SP_MediaSkipBackward)
+            skipBackwardButton = QPushButton(skipBackwardIcon, '', self)
+            skipBackwardButton.setObjectName("SkipBackwardButton." + name)
+            skipBackwardButton.setFlat(flat)
+            skipBackwardButton.setMaximumWidth(width)
+            skipBackwardButton.clicked.connect(self.onSkipBackward)
+            sliderControlsWidget.layout().addWidget(skipBackwardButton)
+
+            seekBackwardIcon = self.style().standardIcon(QStyle.SP_MediaSeekBackward)
+            seekBackwardButton = QPushButton(seekBackwardIcon, '', self)
+            seekBackwardButton.setObjectName("SeekBackwardButton." + name)
+            seekBackwardButton.setFlat(flat)
+            seekBackwardButton.setMaximumWidth(width)
+            seekBackwardButton.clicked.connect(self.onSeekBackward)
+            sliderControlsWidget.layout().addWidget(seekBackwardButton)
+
             slider = QSlider(Qt.Horizontal, self)
             slider.setObjectName(name)
-            self._parametersWidget.layout().addWidget(slider);
+            sliderControlsWidget.layout().addWidget(slider);
+
+            seekForwardIcon = self.style().standardIcon(QStyle.SP_MediaSeekForward)
+            seekForwardButton = QPushButton(seekForwardIcon, '', self)
+            seekForwardButton.setObjectName("SeekForwardButton." + name)
+            seekForwardButton.setFlat(flat)
+            seekForwardButton.setMaximumWidth(width)
+            seekForwardButton.clicked.connect(self.onSeekForward)
+            sliderControlsWidget.layout().addWidget(seekForwardButton)
+
+            skipForwardIcon = self.style().standardIcon(QStyle.SP_MediaSkipForward)
+            skipForwardButton = QPushButton(skipForwardIcon, '', self)
+            skipForwardButton.setObjectName("SkipForwardButton." + name)
+            skipForwardButton.setFlat(flat)
+            skipForwardButton.setMaximumWidth(width)
+            skipForwardButton.clicked.connect(self.onSkipForward)
+            sliderControlsWidget.layout().addWidget(skipForwardButton)
+
+            playIcon = self.style().standardIcon(QStyle.SP_MediaPlay)
+            playButton = QPushButton(playIcon, '', self)
+            playButton.setObjectName("PlayButton." + name)
+            playButton.setFlat(flat)
+            playButton.setMaximumWidth(width)
+            playButton.clicked.connect(self.onPlay)
+            sliderControlsWidget.layout().addWidget(playButton)
 
             # Configure the slider
             self.configureSlider(slider, properties)
@@ -163,6 +215,50 @@ class MainWindow(QMainWindow):
 
         self.render()
 
+    # Back up slider all the way to the left
+    def onSkipBackward(self):
+        parameterName = self.sender().objectName().replace("SkipBackwardButton.", "")
+        slider = self._parametersWidget.findChild(QSlider, parameterName)
+        slider.setValue(0)
+
+    # Back up slider one step to the left
+    def onSeekBackward(self):
+        parameterName = self.sender().objectName().replace("SeekBackwardButton.", "")
+        slider = self._parametersWidget.findChild(QSlider, parameterName)
+        slider.setValue(0 if slider.value() == 0 else slider.value() - 1)
+
+    # Forward slider one step to the right
+    def onSeekForward(self):
+        parameterName = self.sender().objectName().replace("SeekForwardButton.", "")
+        slider = self._parametersWidget.findChild(QSlider, parameterName)
+        maximum = slider.maximum()
+        slider.setValue(maximum if slider.value() == maximum else slider.value() + 1)
+
+    # Forward the slider all the way to the right
+    def onSkipForward(self):
+        parameterName = self.sender().objectName().replace("SkipForwardButton.", "")
+        slider = self._parametersWidget.findChild(QSlider, parameterName)
+        slider.setValue(slider.maximum())
+
+    # Play forward through the parameters
+    def onPlay(self):
+        parameterName = self.sender().objectName().replace("PlayButton.", "")
+        timer = QTimer(self)
+        timer.setObjectName("Timer." + parameterName)
+        timer.setInterval(200)
+        timer.timeout.connect(self.onPlayTimer)
+        timer.start()
+
+    def onPlayTimer(self):
+        parameterName = self.sender().objectName().replace("Timer.", "")
+
+        slider = self._parametersWidget.findChild(QSlider, parameterName)
+        maximum = slider.maximum()
+        if (slider.value() == slider.maximum()):
+            self.sender().stop()
+        else:
+            slider.setValue(maximum if slider.value() == maximum else slider.value() + 1)
+
     # Format string from number
     def _formatText(self, value):
         try:
@@ -193,7 +289,7 @@ class MainWindow(QMainWindow):
         self._mouseInteractor.setTheta(self._currentQuery['theta'])
 
     # Update the camera angle
-    def _updateCameraAngle(self):
+    def _updateCamera(self):
         # Set the camera settings if available
         phi   = self._mouseInteractor.getPhi()
         theta = self._mouseInteractor.getTheta()
@@ -243,8 +339,4 @@ class MainWindow(QMainWindow):
         # Try to resize the display widget
         self._displayWidget.sizeHint = pix.size
 
-        self.setPixmap(pix)
-
-    # Set the image displayed from a QPixmap
-    def setPixmap(self, pixmap):
-        self._displayWidget.setPixmap(pixmap)
+        self._displayWidget.setPixmap(pix)

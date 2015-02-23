@@ -1,10 +1,10 @@
 from PySide.QtCore import *
 from PySide.QtGui import *
 
-# Subclass of QLabel that emits signals for mouse events.  Emits
+# Subclass of QGraphicsView that emits signals for various  events.  Emits
 # signals with the mouse position when the mouse is pressed, moved,
 # and released.
-class QDisplayLabel(QGraphicsView):
+class QRenderView(QGraphicsView):
     # Qt signals in the PySide style
     mousePressSignal   = Signal(('QMouseEvent'))
     mouseMoveSignal    = Signal(('QMouseEvent'))
@@ -12,7 +12,7 @@ class QDisplayLabel(QGraphicsView):
     mouseWheelSignal   = Signal(('QWheelEvent'))
 
     def __init__(self, parent=None):
-        super(QDisplayLabel, self).__init__(parent)
+        super(QRenderView, self).__init__(parent)
 
         self._scene = QGraphicsScene()
         self.setScene(self._scene)
@@ -26,19 +26,19 @@ class QDisplayLabel(QGraphicsView):
         self.mousePressSignal.emit(mouseEvent)
 
         newMouseEvent =  self._remapMouseButton(mouseEvent)
-        super(QDisplayLabel, self).mousePressEvent(newMouseEvent)
+        super(QRenderView, self).mousePressEvent(newMouseEvent)
 
     def mouseMoveEvent(self, mouseEvent):
         self.mouseMoveSignal.emit(mouseEvent)
 
         newMouseEvent =  self._remapMouseButton(mouseEvent)
-        super(QDisplayLabel, self).mouseMoveEvent(newMouseEvent)
+        super(QRenderView, self).mouseMoveEvent(newMouseEvent)
 
     def mouseReleaseEvent(self, mouseEvent):
         self.mouseReleaseSignal.emit(mouseEvent)
 
         newMouseEvent =  self._remapMouseButton(mouseEvent)
-        super(QDisplayLabel, self).mouseReleaseEvent(newMouseEvent)
+        super(QRenderView, self).mouseReleaseEvent(newMouseEvent)
 
     # The default mouse mapping in QSceneWidget is to use left mouse button
     # for panning. I want to match ParaView's mouse bindings, so remap left
