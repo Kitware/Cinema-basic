@@ -262,8 +262,8 @@ class FileStore(Store):
         from fnmatch import fnmatch
         from os import walk
         for root, dirs, files in walk(os.path.dirname(self.__dbfilename)):
-            for file in files:
-                doc_file = os.path.join(root, file)
+            for fn in files:
+                doc_file = os.path.join(root, fn)
                 #if file.find("__data__") == -1 and fnmatch(doc_file, match_pattern):
                 #    yield self.load_document(doc_file)
                 if fnmatch(doc_file, match_pattern):
