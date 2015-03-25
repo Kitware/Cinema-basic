@@ -111,8 +111,12 @@ class MainWindow(QMainWindow):
 
     # Create property UI
     def _createParameterUI(self):
-        dd = self._store.parameter_list
-        for name, properties in dd.items():
+        keys = sorted(self._store.parameter_list)
+        for name in keys:
+            properties = self._store.parameter_list[name]
+            if len(properties['values']) == 1:
+                #don't have widget if no choice possible
+                continue
             labelValueWidget = QWidget(self)
             labelValueWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
             labelValueWidget.setLayout(QHBoxLayout())
