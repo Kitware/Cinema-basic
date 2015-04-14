@@ -3,6 +3,7 @@ from PySide.QtCore import *
 from PySide.QtGui import *
 
 import PIL.ImageFile
+import numpy
 
 from QRenderView import *
 from RenderViewMouseInteractor import *
@@ -64,7 +65,6 @@ class MainWindow(QMainWindow):
         # Display the default image
         doc = self._store.find(dict(self._currentQuery)).next()
         self.displayDocument(doc)
-
         self._createParameterUI()
 
     # Disconnect mouse signals
@@ -332,12 +332,14 @@ class MainWindow(QMainWindow):
 
     # Given a document, read the data into an image that can be displayed in Qt
     def displayDocument(self, doc):
-        #load it into PIL
-        imageparser = PIL.ImageFile.Parser()
-        imageparser.feed(doc.data)
-        pimg = imageparser.close()
-        imageString = pimg.convert('RGBA').tostring('raw', 'BGRA')
-        qimg = QImage(imageString, pimg.size[0], pimg.size[1], QImage.Format_ARGB32)
+
+        if doc.data == None:
+            return
+
+        pimg = PIL.Image.fromarray(doc.data)
+        imageString = pimg.tostring('raw', 'RGB')
+        qimg = QImage(imageString, pimg.size[0], pimg.size[1], QImage.Format_RGB888)
+
         pix = QPixmap.fromImage(qimg)
 
         # Try to resize the display widget

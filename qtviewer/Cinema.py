@@ -14,7 +14,7 @@ import PIL.ImageFile
 import IO.cinema_store
 
 #open up a store
-cs = IO.cinema_store.FileStore(sys.argv[1])
+cs = IO.cinema_store.SingleFileStore(sys.argv[1])
 cs.load()
 
 aselection = {}

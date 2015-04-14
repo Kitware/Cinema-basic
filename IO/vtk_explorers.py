@@ -6,6 +6,8 @@
 import explorers
 import vtk
 from vtk.util import numpy_support
+from vtk.numpy_interface import dataset_adapter as dsa
+import numpy as np
 
 class ImageExplorer(explorers.Explorer):
     """
@@ -17,16 +19,19 @@ class ImageExplorer(explorers.Explorer):
         self.rw = rw
         self.w2i = vtk.vtkWindowToImageFilter()
         self.w2i.SetInput(self.rw)
-        #TODO: choice of writer should be based on store.get_image_type
-        self.pw = vtk.vtkPNGWriter()
-        self.pw.SetInputConnection(self.w2i.GetOutputPort())
-        self.pw.WriteToMemoryOn()
 
     def insert(self, document):
         self.rw.Render()
         self.w2i.Modified()
-        self.pw.Write()
-        document.data = numpy_support.vtk_to_numpy(self.pw.GetResult())
+        self.w2i.Update()
+        image = self.w2i.GetOutput()
+        npview = dsa.WrapDataObject(image)
+        idata = npview.PointData[0]
+        ext = image.GetExtent()
+        width = ext[1]-ext[0]+1
+        height = ext[3]-ext[2]+1
+        imageslice = np.flipud(idata.reshape(width,height,3))
+        document.data = imageslice
         super(ImageExplorer, self).insert(document)
 
 class Clip(explorers.Track):

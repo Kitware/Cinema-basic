@@ -91,7 +91,7 @@ def test_vtk_clip(fname=None):
 
     #make or open a cinema data store to put results in
     cs = FileStore(fname)
-    cs.filename_pattern = "{offset}_slice.png"
+    cs.filename_pattern = "{offset}_slice.jpg"
     cs.add_parameter("offset", make_parameter('offset', [0,.2,.4,.6,.8,1.0]))
 
     #associate control points wlth parameters of the data store
@@ -117,7 +117,7 @@ def test_pv_slice(fname):
 
     #make or open a cinema data store to put results in
     cs = FileStore(fname)
-    cs.filename_pattern = "{phi}_{theta}_{offset}_{color}_slice.png"
+    cs.filename_pattern = "{phi}_{theta}_{offset}_{color}_slice.jpg"
     cs.add_parameter("phi", make_parameter('phi', [90, 120, 140]))
     cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
     cs.add_parameter("offset", make_parameter('offset', [-.4,-.2,0,.2,.4]))
@@ -134,10 +134,47 @@ def test_pv_slice(fname):
     col = pv_explorers.Color("color", colorChoice, sliceRep)
 
     params = ["phi","theta","offset","color"]
-    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col])
+    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col], view_proxy)
     #run through all parameter combinations and put data into the store
     e.explore()
     del view_proxy
+    return e
+
+def test_pv_vol(fname):
+    import explorers
+    import pv_explorers
+    import paraview.simple as pv
+
+    # set up some processing task
+    view_proxy = pv.CreateRenderView()
+    s = pv.Sphere()
+    sliceFilt = pv.Slice( SliceType="Plane", Input=s, SliceOffsetValues=[0.0] )
+    sliceFilt.SliceType.Normal = [0,1,0]
+    sliceRep = pv.Show(sliceFilt)
+
+    #make or open a cinema data store to put results in
+    cs = SingleFileStore(fname)
+    cs.add_parameter("phi", make_parameter('phi', [90, 120, 140]))
+    cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
+    cs.add_parameter("offset", make_parameter('offset', [-.4,-.2,0,.2,.4]))
+    cs.add_parameter("color", make_parameter('color', ['yellow', 'cyan', "purple"], typechoice='list'))
+
+    colorChoice = pv_explorers.ColorList()
+    colorChoice.AddSolidColor('yellow', [1, 1, 0])
+    colorChoice.AddSolidColor('cyan', [0, 1, 1])
+    colorChoice.AddSolidColor('purple', [1, 0, 1])
+
+    #associate control points wlth parameters of the data store
+    cam = pv_explorers.Camera([0,0,0], [0,1,0], 10.0, view_proxy) #phi,theta implied
+    filt = pv_explorers.Slice("offset", sliceFilt)
+    col = pv_explorers.Color("color", colorChoice, sliceRep)
+
+    params = ["phi","theta","offset","color"]
+    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col], view_proxy)
+    #run through all parameter combinations and put data into the store
+    e.explore()
+    del view_proxy
+
     return e
 
 def test_store():
@@ -174,7 +211,7 @@ def test_pv_contour(fname):
 
     #make or open a cinema data store to put results in
     cs = FileStore(fname)
-    cs.filename_pattern = "{phi}_{theta}_{contour}_{color}_contour.png"
+    cs.filename_pattern = "{phi}_{theta}_{contour}_{color}_contour.jpg"
     cs.add_parameter("phi", make_parameter('phi', [90,120,140]))
     cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
     cs.add_parameter("contour", make_parameter('contour', [50,100,150,200]))
@@ -254,6 +291,97 @@ def test_NOP(fname):
 
     #run through all parameter combinations and put data into the store
     e.explore()
+    return e
+
+def test_SFS(fname):
+    if not fname:
+        fname = "info.json"
+    fs = SingleFileStore(fname)
+    fs.add_parameter('theta', {
+        "default": 60,
+        "type":  "range",
+        "values": [60, 90, 120, 150],
+        "label": "theta"
+        })
+    fs.add_parameter('phi', {
+        "default": 60,
+        "type":  "range",
+        "values": [60, 90, 120, 150],
+        "label": "phi"
+        })
+    #print fs._get_numslices()
+    print "INSERT DOC 60,150"
+    doc = Document({"phi": 60, "theta":150}, "Hello World")
+    fs.insert(doc)
+    print doc.data
+    print "INSERT DOC 60,120"
+    doc = Document({"phi": 60, "theta":120}, "World of WarCraft")
+    fs.insert(doc)
+    print doc.data
+    print "INSERT DOC 150,150"
+    doc = Document({"phi": 150, "theta":150}, "Craft Macaroni and Chese")
+    fs.insert(doc)
+    print doc.data
+    print "GET 60,150"
+    print fs.find({"phi":60, "theta":150}).next().data
+    print "GET 60,90"
+    print fs.find({"phi":60, "theta":90}).next().data
+    print "GET 60,*"
+    for x in fs.find({"phi":60}):
+        print x.data
+    print "GET *,150"
+    for x in fs.find({"theta":150}):
+        print x.data
+
+def test_vtk_clipSFS(fname=None):
+    import explorers
+    import vtk_explorers
+    import vtk
+
+    if not fname:
+        fname = "info.json"
+
+    # set up some processing task
+    s = vtk.vtkSphereSource()
+
+    plane = vtk.vtkPlane()
+    plane.SetOrigin(0, 0, 0)
+    plane.SetNormal(-1, -1, 0)
+
+    clip = vtk.vtkClipPolyData()
+    clip.SetInputConnection(s.GetOutputPort())
+    clip.SetClipFunction(plane)
+    clip.GenerateClipScalarsOn()
+    clip.GenerateClippedOutputOn()
+    clip.SetValue(0)
+
+    m = vtk.vtkPolyDataMapper()
+    m.SetInputConnection(clip.GetOutputPort())
+
+    rw = vtk.vtkRenderWindow()
+    r = vtk.vtkRenderer()
+    rw.AddRenderer(r)
+
+    a = vtk.vtkActor()
+    a.SetMapper(m)
+    r.AddActor(a)
+
+    #make or open a cinema data store to put results in
+    cs = SingleFileStore(fname)
+    cs.add_parameter("offset", make_parameter('offset', [-.4,-.2,0,.2,.4,.6]))
+    #print cs._get_numslices()
+
+    #associate control points wlth parameters of the data store
+    g = vtk_explorers.Clip('offset', clip)
+    e = vtk_explorers.ImageExplorer(cs, ['offset'], [g], rw)
+
+    #run through all parameter combinations and put data into the store
+    e.explore()
+
+    #for x in cs.find({"offset":0.2}):
+    #    for pixel in x.data:
+    #        print pixel
+
     return e
 
 if __name__ == "__main__":

@@ -6,6 +6,8 @@
 import explorers
 
 import paraview.simple as simple
+from vtk.numpy_interface import dataset_adapter as dsa
+import numpy as np
 
 class ImageExplorer(explorers.Explorer):
     """
@@ -19,17 +21,16 @@ class ImageExplorer(explorers.Explorer):
         self.view = view
 
     def insert(self, document):
-        # FIXME: for now we'll write a temporary image and read that in.
-        # we need to provide nicer API for this.
-        extension = self.cinema_store.get_image_type()
-        simple.WriteImage("temporary"+extension, view=self.view)
-        with open("temporary"+extension, "rb") as file:
-            document.data = file.read()
-
-        #alternatively if you are just writing out files and don't need them in memory
-        ##fn = self.cinema_store.get_filename(document)
-        ##simple.WriteImage(fn)
-
+        if not self.view:
+            return
+        image = self.view.CaptureWindow(1)
+        npview = dsa.WrapDataObject(image)
+        idata = npview.PointData[0]
+        ext = image.GetExtent()
+        width = ext[1]-ext[0]+1
+        height = ext[3]-ext[2]+1
+        imageslice = np.flipud(idata.reshape(width,height,3))
+        document.data = imageslice
         super(ImageExplorer, self).insert(document)
 
 class Camera(explorers.Track):
