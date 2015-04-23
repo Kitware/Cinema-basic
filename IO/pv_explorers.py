@@ -145,8 +145,8 @@ class Templated(explorers.Track):
 
 class ColorList():
     """
-    A helper that creates a dictionary of color controls for ParaView. The Color engine takes in
-    a Color name from the Explorer and looks up into a ColorList to determine exactly what
+    A helper that creates a dictionary of color controls for ParaView. The Color track takes in
+    a color name from the Explorer and looks up into a ColorList to determine exactly what
     needs to be set to apply the color.
     """
     def __init__(self):
@@ -158,6 +158,9 @@ class ColorList():
     def AddLUT(self, name, lut):
         self._dict[name] = {'type':'lut','content':lut}
 
+    def AddDepth(self, name):
+        self._dict[name] = {'type':'depth'}
+
     def getColor(self, name):
         return self._dict[name]
 
@@ -165,7 +168,6 @@ class Color(explorers.Track):
     """
     A track that connects a parameter to a choice of surface rendered color maps.
     """
-
     def __init__(self, parameter, colorlist, rep):
         super(Color, self).__init__()
         self.parameter = parameter
@@ -181,3 +183,5 @@ class Color(explorers.Track):
         if spec['type'] == 'lut':
             self.rep.LookupTable = spec['content']
             self.rep.ColorArrayName = o
+        if spec['type'] == 'depth':
+            pass

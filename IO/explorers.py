@@ -43,22 +43,64 @@ class Explorer(object):
         self.insert(doc)
 
     def explore(self, fixedargs=None):
-        """Explore the problem space to populate the store"""
+        """
+        Explore the problem space to populate the store.
+        fixed arguments are the parameters that we want to hold constant in the exploration
+        """
         self.prepare()
 
-        ordered = self.list_parameters()
-        args = []
+        dependencies = self.cinema_store.parameter_associations
+        #print "DEPS", dependencies
+
+        param_names = self.list_parameters()
+        params = []
         values = []
-        for name in ordered:
+        dep_params = []
+        for name in param_names:
             vals = self.cinema_store.get_parameter(name)['values']
-            args.append(name)
-            values.append(vals)
+            if fixedargs and name in fixedargs:
+                continue
+
+            if name in dependencies:
+                dep_params.append(name)
+            else:
+                params.append(name)
+                values.append(vals)
+        #print "PARAMS", params
+        #print "VALUES", values
+        #print "DEP PARAMS", dep_params
 
         for element in itertools.product(*values):
-            desc = dict(itertools.izip(args, element))
+            descriptor = dict(itertools.izip(params, element))
+
             if fixedargs != None:
-                desc.update(fixedargs)
-            self.execute(desc)
+                descriptor.update(fixedargs)
+
+            #print "DESC", descriptor
+
+            ok_params = []
+            ok_vals = []
+            for possible in dep_params:
+                #print "TEST", possible, dependencies, dependencies[possible]
+                ok = True
+                for dep, oks in dependencies[possible].iteritems():
+                    #print "DEP", dep, "OKS", oks
+                    if not descriptor[dep] in oks:
+                        #print "BAD"
+                        ok = False
+                if ok:
+                    ok_params.append(possible)
+                    ok_vals.append(self.cinema_store.get_parameter(possible)['values'])
+
+            for element2 in itertools.product(*ok_vals):
+                descriptor2 = dict(itertools.izip(ok_params, element2))
+                #print "DESC2", descriptor2
+                full_desc = dict()
+                full_desc.update(descriptor)
+                full_desc.update(descriptor2)
+
+                self.execute(full_desc)
+                #print "FULL", full_desc
 
         self.finish()
 

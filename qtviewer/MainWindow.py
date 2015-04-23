@@ -63,7 +63,8 @@ class MainWindow(QMainWindow):
             self._connectMouseSignals()
 
         # Display the default image
-        doc = self._store.find(dict(self._currentQuery)).next()
+        cq, ignored = self._getCQ()
+        doc = self._store.find(cq).next()
         self.displayDocument(doc)
         self._createParameterUI()
 
@@ -107,7 +108,147 @@ class MainWindow(QMainWindow):
         dd = self._store.parameter_list
 
         for name, properties in dd.items():
-            self._currentQuery[name] = dd[name]['default']
+            if properties['type'] == 'option':
+                v = set()
+                v.add(str(dd[name]['default']))
+                self._currentQuery[name] = v
+            else:
+                self._currentQuery[name] = dd[name]['default']
+
+    # Create a slider for a 'range' parameter
+    def _createRangeSlider(self, name, properties):
+        labelValueWidget = QWidget(self)
+        labelValueWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        labelValueWidget.setLayout(QHBoxLayout())
+        labelValueWidget.layout().setContentsMargins(0, 0, 0, 0)
+        self._parametersWidget.layout().addWidget(labelValueWidget)
+
+        textLabel = QLabel(properties['label'], self)
+        labelValueWidget.layout().addWidget(textLabel)
+
+        valueLabel = QLabel('0', self)
+        valueLabel.setAlignment(Qt.AlignRight)
+        valueLabel.setObjectName(name + "ValueLabel")
+        labelValueWidget.layout().addWidget(valueLabel)
+
+        controlsWidget = QWidget(self)
+        controlsWidget.setSizePolicy(QSizePolicy.MinimumExpanding,
+                                           QSizePolicy.Fixed)
+        controlsWidget.setLayout(QHBoxLayout())
+        controlsWidget.layout().setContentsMargins(0, 0, 0, 0)
+        #controlsWidget.setContentsMargins(0, 0, 0, 0)
+        self._parametersWidget.layout().addWidget(controlsWidget)
+
+        flat = False
+        width = 25
+
+        skipBackwardIcon = self.style().standardIcon(QStyle.SP_MediaSkipBackward)
+        skipBackwardButton = QPushButton(skipBackwardIcon, '', self)
+        skipBackwardButton.setObjectName("SkipBackwardButton." + name)
+        skipBackwardButton.setFlat(flat)
+        skipBackwardButton.setMaximumWidth(width)
+        skipBackwardButton.clicked.connect(self.onSkipBackward)
+        controlsWidget.layout().addWidget(skipBackwardButton)
+
+        seekBackwardIcon = self.style().standardIcon(QStyle.SP_MediaSeekBackward)
+        seekBackwardButton = QPushButton(seekBackwardIcon, '', self)
+        seekBackwardButton.setObjectName("SeekBackwardButton." + name)
+        seekBackwardButton.setFlat(flat)
+        seekBackwardButton.setMaximumWidth(width)
+        seekBackwardButton.clicked.connect(self.onSeekBackward)
+        controlsWidget.layout().addWidget(seekBackwardButton)
+
+        slider = QSlider(Qt.Horizontal, self)
+        slider.setObjectName(name)
+        controlsWidget.layout().addWidget(slider);
+
+        seekForwardIcon = self.style().standardIcon(QStyle.SP_MediaSeekForward)
+        seekForwardButton = QPushButton(seekForwardIcon, '', self)
+        seekForwardButton.setObjectName("SeekForwardButton." + name)
+        seekForwardButton.setFlat(flat)
+        seekForwardButton.setMaximumWidth(width)
+        seekForwardButton.clicked.connect(self.onSeekForward)
+        controlsWidget.layout().addWidget(seekForwardButton)
+
+        skipForwardIcon = self.style().standardIcon(QStyle.SP_MediaSkipForward)
+        skipForwardButton = QPushButton(skipForwardIcon, '', self)
+        skipForwardButton.setObjectName("SkipForwardButton." + name)
+        skipForwardButton.setFlat(flat)
+        skipForwardButton.setMaximumWidth(width)
+        skipForwardButton.clicked.connect(self.onSkipForward)
+        controlsWidget.layout().addWidget(skipForwardButton)
+
+        playIcon = self.style().standardIcon(QStyle.SP_MediaPlay)
+        playButton = QPushButton(playIcon, '', self)
+        playButton.setObjectName("PlayButton." + name)
+        playButton.setFlat(flat)
+        playButton.setMaximumWidth(width)
+        playButton.clicked.connect(self.onPlay)
+        controlsWidget.layout().addWidget(playButton)
+
+        # Configure the slider
+        self.configureSlider(slider, properties)
+        self._updateSlider(properties['label'], properties['default'])
+
+    # Create a slider for a 'range' parameter
+    def _createListPulldown(self, name, properties):
+        labelValueWidget = QWidget(self)
+        labelValueWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        labelValueWidget.setLayout(QHBoxLayout())
+        labelValueWidget.layout().setContentsMargins(0, 0, 0, 0)
+        self._parametersWidget.layout().addWidget(labelValueWidget)
+
+        textLabel = QLabel(properties['label'], self)
+        labelValueWidget.layout().addWidget(textLabel)
+
+        controlsWidget = QWidget(self)
+        controlsWidget.setSizePolicy(QSizePolicy.MinimumExpanding,
+                                           QSizePolicy.Fixed)
+        controlsWidget.setLayout(QHBoxLayout())
+        controlsWidget.layout().setContentsMargins(0, 0, 0, 0)
+        #controlsWidget.setContentsMargins(0, 0, 0, 0)
+        self._parametersWidget.layout().addWidget(controlsWidget)
+
+        menu = QComboBox(self)
+        menu.setObjectName(name)
+        controlsWidget.layout().addWidget(menu);
+
+        found = -1
+        for entry in properties['values']:
+            if entry == properties['default']:
+                found = menu.count()
+            menu.addItem(str(entry))
+        menu.setCurrentIndex(found)
+        menu.currentIndexChanged.connect(self.onChosen)
+
+    # Create a slider for a 'range' parameter
+    def _createOptionCheckbox(self, name, properties):
+        labelValueWidget = QWidget(self)
+        labelValueWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        labelValueWidget.setLayout(QHBoxLayout())
+        labelValueWidget.layout().setContentsMargins(0, 0, 0, 0)
+        self._parametersWidget.layout().addWidget(labelValueWidget)
+
+        textLabel = QLabel(properties['label'], self)
+        labelValueWidget.layout().addWidget(textLabel)
+
+        controlsWidget = QWidget(self)
+        controlsWidget.setSizePolicy(QSizePolicy.MinimumExpanding,
+                                           QSizePolicy.Fixed)
+        controlsWidget.setLayout(QHBoxLayout())
+        controlsWidget.layout().setContentsMargins(0, 0, 0, 0)
+        #controlsWidget.setContentsMargins(0, 0, 0, 0)
+        self._parametersWidget.layout().addWidget(controlsWidget)
+
+        for entry in properties['values']:
+           cb = QCheckBox(str(entry), self)
+           cb.setObjectName(name)
+           cb.value = entry
+           if entry == properties['default']:
+               cb.setChecked(True)
+
+           cb.stateChanged.connect(self.onChecked)
+           controlsWidget.layout().addWidget(cb)
 
     # Create property UI
     def _createParameterUI(self):
@@ -117,78 +258,16 @@ class MainWindow(QMainWindow):
             if len(properties['values']) == 1:
                 #don't have widget if no choice possible
                 continue
-            labelValueWidget = QWidget(self)
-            labelValueWidget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
-            labelValueWidget.setLayout(QHBoxLayout())
-            labelValueWidget.layout().setContentsMargins(0, 0, 0, 0)
-            self._parametersWidget.layout().addWidget(labelValueWidget)
 
-            textLabel = QLabel(properties['label'], self)
-            labelValueWidget.layout().addWidget(textLabel)
+            if properties['type'] == 'range':
+                self._createRangeSlider(name, properties)
 
-            valueLabel = QLabel('0', self)
-            valueLabel.setAlignment(Qt.AlignRight)
-            valueLabel.setObjectName(name + "ValueLabel")
-            labelValueWidget.layout().addWidget(valueLabel)
+            if properties['type'] == 'list':
+                #TODO: should be a pulldown menu
+                self._createListPulldown(name, properties)
 
-            sliderControlsWidget = QWidget(self)
-            sliderControlsWidget.setSizePolicy(QSizePolicy.MinimumExpanding,
-                                               QSizePolicy.Fixed)
-            sliderControlsWidget.setLayout(QHBoxLayout())
-            sliderControlsWidget.layout().setContentsMargins(0, 0, 0, 0)
-            #sliderControlsWidget.setContentsMargins(0, 0, 0, 0)
-            self._parametersWidget.layout().addWidget(sliderControlsWidget)
-
-            flat = False
-            width = 25
-
-            skipBackwardIcon = self.style().standardIcon(QStyle.SP_MediaSkipBackward)
-            skipBackwardButton = QPushButton(skipBackwardIcon, '', self)
-            skipBackwardButton.setObjectName("SkipBackwardButton." + name)
-            skipBackwardButton.setFlat(flat)
-            skipBackwardButton.setMaximumWidth(width)
-            skipBackwardButton.clicked.connect(self.onSkipBackward)
-            sliderControlsWidget.layout().addWidget(skipBackwardButton)
-
-            seekBackwardIcon = self.style().standardIcon(QStyle.SP_MediaSeekBackward)
-            seekBackwardButton = QPushButton(seekBackwardIcon, '', self)
-            seekBackwardButton.setObjectName("SeekBackwardButton." + name)
-            seekBackwardButton.setFlat(flat)
-            seekBackwardButton.setMaximumWidth(width)
-            seekBackwardButton.clicked.connect(self.onSeekBackward)
-            sliderControlsWidget.layout().addWidget(seekBackwardButton)
-
-            slider = QSlider(Qt.Horizontal, self)
-            slider.setObjectName(name)
-            sliderControlsWidget.layout().addWidget(slider);
-
-            seekForwardIcon = self.style().standardIcon(QStyle.SP_MediaSeekForward)
-            seekForwardButton = QPushButton(seekForwardIcon, '', self)
-            seekForwardButton.setObjectName("SeekForwardButton." + name)
-            seekForwardButton.setFlat(flat)
-            seekForwardButton.setMaximumWidth(width)
-            seekForwardButton.clicked.connect(self.onSeekForward)
-            sliderControlsWidget.layout().addWidget(seekForwardButton)
-
-            skipForwardIcon = self.style().standardIcon(QStyle.SP_MediaSkipForward)
-            skipForwardButton = QPushButton(skipForwardIcon, '', self)
-            skipForwardButton.setObjectName("SkipForwardButton." + name)
-            skipForwardButton.setFlat(flat)
-            skipForwardButton.setMaximumWidth(width)
-            skipForwardButton.clicked.connect(self.onSkipForward)
-            sliderControlsWidget.layout().addWidget(skipForwardButton)
-
-            playIcon = self.style().standardIcon(QStyle.SP_MediaPlay)
-            playButton = QPushButton(playIcon, '', self)
-            playButton.setObjectName("PlayButton." + name)
-            playButton.setFlat(flat)
-            playButton.setMaximumWidth(width)
-            playButton.clicked.connect(self.onPlay)
-            sliderControlsWidget.layout().addWidget(playButton)
-
-            # Configure the slider
-            self.configureSlider(slider, properties)
-            self._updateSlider(properties['label'], properties['default'])
+            if properties['type'] == 'option':
+                self._createOptionCheckbox(name, properties)
 
         self._parametersWidget.layout().addStretch()
 
@@ -212,11 +291,29 @@ class MainWindow(QMainWindow):
         pl = self._store.parameter_list
         parameterValue = pl[parameterName]['values'][sliderIndex]
         self._currentQuery[parameterName] = parameterValue
-
         # Update value label
         valueLabel = self._parametersWidget.findChild(QLabel, parameterName + "ValueLabel")
         valueLabel.setText(self._formatText(parameterValue))
+        self.render()
 
+    # Respond to a combobox change
+    def onChosen(self, index):
+        parameterName = self.sender().objectName()
+        pl = self._store.parameter_list
+        parameterValue = pl[parameterName]['values'][index]
+        self._currentQuery[parameterName] = parameterValue
+        self.render()
+
+    # Respond to a checkbox change
+    def onChecked(self, state):
+        parameterName = self.sender().objectName()
+        parameterValue = self.sender().value
+        currentValues = self._currentQuery[parameterName]
+        if state:
+            currentValues.add(str(parameterValue))
+        else:
+            currentValues.remove(str(parameterValue))
+        self._currentQuery[parameterName] = currentValues
         self.render()
 
     # Back up slider all the way to the left
@@ -314,15 +411,38 @@ class MainWindow(QMainWindow):
 
         self.render()
 
+    # separate option types with multiple values out into their own dict
+    def _getCQ(self):
+        opts = dict()
+        cq = dict()
+        for n,v in self._currentQuery.items():
+            if type(v) == type(set()):
+                opts[n] = v
+                v = list(v)
+                if len(v) == 1:
+                    cq[n] = v[0]
+            else:
+                cq[n] = v
+        return cq, opts
+
     # Query the image store and display the retrieved image
     def render(self):
         # Retrieve image from data store with the current query. Only
         # care about the first - there should be only one if we have
         # correctly specified all the properties.
-        docs = [doc for doc in self._store.find(self._currentQuery)]
-        if (len(docs) > 0):
-            self.displayDocument(docs[0])
-        else:
+        cq, opts = self._getCQ()
+        docs = [doc for doc in self._store.find(cq)]
+        found = False
+        if len(docs) > 0:
+            if len(opts) == 0:
+                found = True
+                self.displayDocument(docs[0])
+            for doc in docs:
+                for n, vs in opts.items():
+                    if doc.descriptor[n] in vs:
+                        found = True
+                        self.displayDocument(doc)
+        if not found:
             self._displayWidget.setPixmap(None)
             self._displayWidget.setAlignment(Qt.AlignCenter)
 

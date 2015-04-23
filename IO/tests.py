@@ -4,9 +4,9 @@ This module tests the generic interface to cinema data.
 
 from cinema_store import *
 
-#import sys
-#sys.path.append("/Builds/ParaView/devel/master_debug/lib")
-#sys.path.append("/Builds/ParaView/devel/master_debug/lib/site-packages")
+import sys
+sys.path.append("/Builds/ParaView/devel/master_debug/lib")
+sys.path.append("/Builds/ParaView/devel/master_debug/lib/site-packages")
 
 def demonstrate_manual_populate(fname="/tmp/demonstrate_manual_populate/info.json"):
     """Demonstrates how to setup a basic cinema store filling the data up with text"""
@@ -56,128 +56,7 @@ def demonstrate_analyze(fname="/tmp/demonstrate_populate/info.json"):
     for doc in cs.find({'theta': 20}):
         print doc.descriptor, doc.data
 
-def test_vtk_clip(fname=None):
-    import explorers
-    import vtk_explorers
-    import vtk
-
-    if not fname:
-        fname = "info.json"
-
-    # set up some processing task
-    s = vtk.vtkSphereSource()
-
-    plane = vtk.vtkPlane()
-    plane.SetOrigin(0, 0, 0)
-    plane.SetNormal(-1, -1, 0)
-
-    clip = vtk.vtkClipPolyData()
-    clip.SetInputConnection(s.GetOutputPort())
-    clip.SetClipFunction(plane)
-    clip.GenerateClipScalarsOn()
-    clip.GenerateClippedOutputOn()
-    clip.SetValue(0)
-
-    m = vtk.vtkPolyDataMapper()
-    m.SetInputConnection(clip.GetOutputPort())
-
-    rw = vtk.vtkRenderWindow()
-    r = vtk.vtkRenderer()
-    rw.AddRenderer(r)
-
-    a = vtk.vtkActor()
-    a.SetMapper(m)
-    r.AddActor(a)
-
-    #make or open a cinema data store to put results in
-    cs = FileStore(fname)
-    cs.filename_pattern = "{offset}_slice.jpg"
-    cs.add_parameter("offset", make_parameter('offset', [0,.2,.4,.6,.8,1.0]))
-
-    #associate control points wlth parameters of the data store
-    g = vtk_explorers.Clip('offset', clip)
-    e = vtk_explorers.ImageExplorer(cs, ['offset'], [g], rw)
-
-    #run through all parameter combinations and put data into the store
-    e.explore()
-    return e
-
-
-def test_pv_slice(fname):
-    import explorers
-    import pv_explorers
-    import paraview.simple as pv
-
-    # set up some processing task
-    view_proxy = pv.CreateRenderView()
-    s = pv.Sphere()
-    sliceFilt = pv.Slice( SliceType="Plane", Input=s, SliceOffsetValues=[0.0] )
-    sliceFilt.SliceType.Normal = [0,1,0]
-    sliceRep = pv.Show(sliceFilt)
-
-    #make or open a cinema data store to put results in
-    cs = FileStore(fname)
-    cs.filename_pattern = "{phi}_{theta}_{offset}_{color}_slice.jpg"
-    cs.add_parameter("phi", make_parameter('phi', [90, 120, 140]))
-    cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
-    cs.add_parameter("offset", make_parameter('offset', [-.4,-.2,0,.2,.4]))
-    cs.add_parameter("color", make_parameter('color', ['yellow', 'cyan', "purple"], typechoice='list'))
-
-    colorChoice = pv_explorers.ColorList()
-    colorChoice.AddSolidColor('yellow', [1, 1, 0])
-    colorChoice.AddSolidColor('cyan', [0, 1, 1])
-    colorChoice.AddSolidColor('purple', [1, 0, 1])
-
-    #associate control points wlth parameters of the data store
-    cam = pv_explorers.Camera([0,0,0], [0,1,0], 10.0, view_proxy) #phi,theta implied
-    filt = pv_explorers.Slice("offset", sliceFilt)
-    col = pv_explorers.Color("color", colorChoice, sliceRep)
-
-    params = ["phi","theta","offset","color"]
-    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col], view_proxy)
-    #run through all parameter combinations and put data into the store
-    e.explore()
-    del view_proxy
-    return e
-
-def test_pv_vol(fname):
-    import explorers
-    import pv_explorers
-    import paraview.simple as pv
-
-    # set up some processing task
-    view_proxy = pv.CreateRenderView()
-    s = pv.Sphere()
-    sliceFilt = pv.Slice( SliceType="Plane", Input=s, SliceOffsetValues=[0.0] )
-    sliceFilt.SliceType.Normal = [0,1,0]
-    sliceRep = pv.Show(sliceFilt)
-
-    #make or open a cinema data store to put results in
-    cs = SingleFileStore(fname)
-    cs.add_parameter("phi", make_parameter('phi', [90, 120, 140]))
-    cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
-    cs.add_parameter("offset", make_parameter('offset', [-.4,-.2,0,.2,.4]))
-    cs.add_parameter("color", make_parameter('color', ['yellow', 'cyan', "purple"], typechoice='list'))
-
-    colorChoice = pv_explorers.ColorList()
-    colorChoice.AddSolidColor('yellow', [1, 1, 0])
-    colorChoice.AddSolidColor('cyan', [0, 1, 1])
-    colorChoice.AddSolidColor('purple', [1, 0, 1])
-
-    #associate control points wlth parameters of the data store
-    cam = pv_explorers.Camera([0,0,0], [0,1,0], 10.0, view_proxy) #phi,theta implied
-    filt = pv_explorers.Slice("offset", sliceFilt)
-    col = pv_explorers.Color("color", colorChoice, sliceRep)
-
-    params = ["phi","theta","offset","color"]
-    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col], view_proxy)
-    #run through all parameter combinations and put data into the store
-    e.explore()
-    del view_proxy
-
-    return e
-
-def test_store():
+def test_store(fname="/tmp/cinema/info.json"):
     fs = FileStore()
     fs.filename_pattern = "{phi}/{theta}/data.raw"
     fs.add_parameter('theta', {
@@ -195,48 +74,45 @@ def test_store():
     doc = Document({"phi": 10}, "Hello World")
     fs.insert(doc)
 
-def test_pv_contour(fname):
-    import explorers
-    import pv_explorers
-    import paraview.simple as pv
-
+def test_SFS(fname="/tmp/cinemaSFS/info.json"):
     if not fname:
         fname = "info.json"
-
-    # set up some processing task
-    view_proxy = pv.CreateRenderView()
-    s = pv.Wavelet()
-    contour = pv.Contour(Input=s, ContourBy='RTData', ComputeScalars=1 )
-    sliceRep = pv.Show(contour)
-
-    #make or open a cinema data store to put results in
-    cs = FileStore(fname)
-    cs.filename_pattern = "{phi}_{theta}_{contour}_{color}_contour.jpg"
-    cs.add_parameter("phi", make_parameter('phi', [90,120,140]))
-    cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
-    cs.add_parameter("contour", make_parameter('contour', [50,100,150,200]))
-    cs.add_parameter("color", make_parameter('color', ['white', 'RTData'], typechoice='list'))
-
-    #associate control points wlth parameters of the data store
-    cam = pv_explorers.Camera([0,0,0], [0,1,0], 75.0, view_proxy) #phi,theta implied
-    filt = pv_explorers.Contour("contour", contour)
-
-    colorChoice = pv_explorers.ColorList()
-    colorChoice.AddSolidColor('white', [1,1,1])
-    colorChoice.AddLUT('RTData', pv.GetLookupTableForArray( "RTData", 1, RGBPoints=[43.34006881713867, 0.23, 0.299, 0.754, 160.01158714294434, 0.865, 0.865, 0.865, 276.68310546875, 0.706, 0.016, 0.15] )
-)
-    col = pv_explorers.Color("color", colorChoice, sliceRep)
-
-    params = ["phi","theta","contour","color"]
-    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col])
-
-    #run through all parameter combinations and put data into the store
-    e.explore()
-
-    pv.Delete(s)
-    pv.Delete(contour)
-    pv.Delete(view_proxy)
-    return e
+    fs = SingleFileStore(fname)
+    fs.add_parameter('theta', {
+        "default": 60,
+        "type":  "range",
+        "values": [60, 90, 120, 150],
+        "label": "theta"
+        })
+    fs.add_parameter('phi', {
+        "default": 60,
+        "type":  "range",
+        "values": [60, 90, 120, 150],
+        "label": "phi"
+        })
+    #print fs._get_numslices()
+    print "INSERT DOC 60,150"
+    doc = Document({"phi": 60, "theta":150}, "Hello World")
+    fs.insert(doc)
+    print doc.data
+    print "INSERT DOC 60,120"
+    doc = Document({"phi": 60, "theta":120}, "World of WarCraft")
+    fs.insert(doc)
+    print doc.data
+    print "INSERT DOC 150,150"
+    doc = Document({"phi": 150, "theta":150}, "Craft Macaroni and Chese")
+    fs.insert(doc)
+    print doc.data
+    print "GET 60,150"
+    print fs.find({"phi":60, "theta":150}).next().data
+    print "GET 60,90"
+    print fs.find({"phi":60, "theta":90}).next().data
+    print "GET 60,*"
+    for x in fs.find({"phi":60}):
+        print x.data
+    print "GET *,150"
+    for x in fs.find({"theta":150}):
+        print x.data
 
 def test_NOP(fname):
     import explorers
@@ -293,45 +169,83 @@ def test_NOP(fname):
     e.explore()
     return e
 
-def test_SFS(fname):
+def test_layers_and_fields(fname):
     if not fname:
         fname = "info.json"
-    fs = SingleFileStore(fname)
-    fs.add_parameter('theta', {
-        "default": 60,
-        "type":  "range",
-        "values": [60, 90, 120, 150],
-        "label": "theta"
-        })
-    fs.add_parameter('phi', {
-        "default": 60,
-        "type":  "range",
-        "values": [60, 90, 120, 150],
-        "label": "phi"
-        })
-    #print fs._get_numslices()
-    print "INSERT DOC 60,150"
-    doc = Document({"phi": 60, "theta":150}, "Hello World")
-    fs.insert(doc)
-    print doc.data
-    print "INSERT DOC 60,120"
-    doc = Document({"phi": 60, "theta":120}, "World of WarCraft")
-    fs.insert(doc)
-    print doc.data
-    print "INSERT DOC 150,150"
-    doc = Document({"phi": 150, "theta":150}, "Craft Macaroni and Chese")
-    fs.insert(doc)
-    print doc.data
-    print "GET 60,150"
-    print fs.find({"phi":60, "theta":150}).next().data
-    print "GET 60,90"
-    print fs.find({"phi":60, "theta":90}).next().data
-    print "GET 60,*"
-    for x in fs.find({"phi":60}):
-        print x.data
-    print "GET *,150"
-    for x in fs.find({"theta":150}):
-        print x.data
+    import explorers
+
+    params = ["time","layer","slice_field","back_color"]
+
+    cs = FileStore(fname)
+    cs.add_parameter("time", make_parameter("time", [0,1,2]))
+    cs.add_parameter("layer", make_parameter("layer", ['outline','slice','background']))
+    cs.add_parameter("slice_field", make_parameter("slice_field", ['solid_red', 'temperature', 'pressure']))
+    cs.add_parameter("back_color", make_parameter("back_color", ['grey0', 'grey49']))
+
+    class printDescriptor(explorers.Explorer):
+        def execute(self, desc):
+            print desc
+
+    print "NO DEPENDENCIES"
+    e = printDescriptor(cs, params, [])
+    e.explore()
+
+    print "NO DEPENDENCIES AND FIXED TIME"
+    e.explore({'time':3})
+
+    print "WITH DEPENDENCIES"
+    cs.assign_parameter_dependence('slice_field', 'layer', ['slice'])
+    cs.assign_parameter_dependence('back_color', 'layer', ['background'])
+    e.explore()
+
+    print "WITH DEPENDENCIES AND FIXED TIME"
+    e.explore({'time':3})
+
+def test_vtk_clip(fname=None):
+    import explorers
+    import vtk_explorers
+    import vtk
+
+    if not fname:
+        fname = "info.json"
+
+    # set up some processing task
+    s = vtk.vtkSphereSource()
+
+    plane = vtk.vtkPlane()
+    plane.SetOrigin(0, 0, 0)
+    plane.SetNormal(-1, -1, 0)
+
+    clip = vtk.vtkClipPolyData()
+    clip.SetInputConnection(s.GetOutputPort())
+    clip.SetClipFunction(plane)
+    clip.GenerateClipScalarsOn()
+    clip.GenerateClippedOutputOn()
+    clip.SetValue(0)
+
+    m = vtk.vtkPolyDataMapper()
+    m.SetInputConnection(clip.GetOutputPort())
+
+    rw = vtk.vtkRenderWindow()
+    r = vtk.vtkRenderer()
+    rw.AddRenderer(r)
+
+    a = vtk.vtkActor()
+    a.SetMapper(m)
+    r.AddActor(a)
+
+    #make or open a cinema data store to put results in
+    cs = FileStore(fname)
+    cs.filename_pattern = "{offset}_slice.png"
+    cs.add_parameter("offset", make_parameter('offset', [0,.2,.4,.6,.8,1.0]))
+
+    #associate control points wlth parameters of the data store
+    g = vtk_explorers.Clip('offset', clip)
+    e = vtk_explorers.ImageExplorer(cs, ['offset'], [g], rw)
+
+    #run through all parameter combinations and put data into the store
+    e.explore()
+    return e
 
 def test_vtk_clipSFS(fname=None):
     import explorers
@@ -384,11 +298,239 @@ def test_vtk_clipSFS(fname=None):
 
     return e
 
+def test_vtk_contour(fname=None):
+    import explorers
+    import vtk_explorers
+    import vtk
+
+    if not fname:
+        fname = "info.json"
+
+    # set up some processing task
+    s = vtk.vtkRTAnalyticSource()
+    s.SetWholeExtent(-50,50,-50,50,-50,50)
+    cf = vtk.vtkContourFilter()
+    cf.SetInputConnection(s.GetOutputPort())
+    cf.SetInputArrayToProcess(0,0,0, "vtkDataObject::FIELD_ASSOCIATION_POINTS", "RTData")
+    cf.SetNumberOfContours(1)
+    cf.SetValue(0, 100)
+
+    m = vtk.vtkPolyDataMapper()
+    m.SetInputConnection(cf.GetOutputPort())
+
+    rw = vtk.vtkRenderWindow()
+    r = vtk.vtkRenderer()
+    rw.AddRenderer(r)
+
+    a = vtk.vtkActor()
+    a.SetMapper(m)
+    r.AddActor(a)
+
+    rw.Render()
+    r.ResetCamera()
+
+    #make or open a cinema data store to put results in
+    cs = FileStore(fname)
+    cs.filename_pattern = "{contour}_{color}.png"
+    cs.add_parameter("contour", make_parameter('contour', [0,25,50,75,100,125,150,175,200,225,250]))
+    cs.add_parameter("color", make_parameter('color', ['white','red']))
+    #cs.add_parameter("mode", make_parameter('mode', ['color','depth']))
+
+    colorChoice = vtk_explorers.ColorList()
+    colorChoice.AddSolidColor('white', [1,1,1])
+    colorChoice.AddSolidColor('red', [1,0,0])
+
+    #associate control points wlth parameters of the data store
+    g = vtk_explorers.Contour('contour', cf, 'SetValue')
+    c = vtk_explorers.Color('color', colorChoice, a)
+    #d = vtk_explorers.Depth('mode')
+    e = vtk_explorers.ImageExplorer(cs, ['contour','color'], [g,c], rw)
+    #d.imageExplorer = e
+
+    #run through all parameter combinations and put data into the store
+    e.explore()
+    return e
+
+def test_pv_slice(fname):
+    import explorers
+    import pv_explorers
+    import paraview.simple as pv
+
+    # set up some processing task
+    view_proxy = pv.CreateRenderView()
+    s = pv.Sphere()
+    sliceFilt = pv.Slice( SliceType="Plane", Input=s, SliceOffsetValues=[0.0] )
+    sliceFilt.SliceType.Normal = [0,1,0]
+    sliceRep = pv.Show(sliceFilt)
+
+    #make or open a cinema data store to put results in
+    cs = FileStore(fname)
+    cs.filename_pattern = "{phi}_{theta}_{offset}_{color}_slice.png"
+    cs.add_parameter("phi", make_parameter('phi', [90, 120, 140]))
+    cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
+    cs.add_parameter("offset", make_parameter('offset', [-.4,-.2,0,.2,.4]))
+    cs.add_parameter("color", make_parameter('color', ['yellow', 'cyan', "purple"], typechoice='list'))
+
+    colorChoice = pv_explorers.ColorList()
+    colorChoice.AddSolidColor('yellow', [1, 1, 0])
+    colorChoice.AddSolidColor('cyan', [0, 1, 1])
+    colorChoice.AddSolidColor('purple', [1, 0, 1])
+
+    #associate control points wlth parameters of the data store
+    cam = pv_explorers.Camera([0,0,0], [0,1,0], 10.0, view_proxy) #phi,theta implied
+    filt = pv_explorers.Slice("offset", sliceFilt)
+    col = pv_explorers.Color("color", colorChoice, sliceRep)
+
+    params = ["phi","theta","offset","color"]
+    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col], view_proxy)
+    #run through all parameter combinations and put data into the store
+    e.explore()
+    del view_proxy
+    return e
+
+def test_pv_sliceSFS(fname):
+    import explorers
+    import pv_explorers
+    import paraview.simple as pv
+
+    # set up some processing task
+    view_proxy = pv.CreateRenderView()
+    s = pv.Sphere()
+    sliceFilt = pv.Slice( SliceType="Plane", Input=s, SliceOffsetValues=[0.0] )
+    sliceFilt.SliceType.Normal = [0,1,0]
+    sliceRep = pv.Show(sliceFilt)
+
+    #make or open a cinema data store to put results in
+    cs = SingleFileStore(fname)
+    cs.add_parameter("phi", make_parameter('phi', [90, 120, 140]))
+    cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
+    cs.add_parameter("offset", make_parameter('offset', [-.4,-.2,0,.2,.4]))
+    cs.add_parameter("color", make_parameter('color', ['yellow', 'cyan', "purple"], typechoice='list'))
+
+    colorChoice = pv_explorers.ColorList()
+    colorChoice.AddSolidColor('yellow', [1, 1, 0])
+    colorChoice.AddSolidColor('cyan', [0, 1, 1])
+    colorChoice.AddSolidColor('purple', [1, 0, 1])
+
+    #associate control points wlth parameters of the data store
+    cam = pv_explorers.Camera([0,0,0], [0,1,0], 10.0, view_proxy) #phi,theta implied
+    filt = pv_explorers.Slice("offset", sliceFilt)
+    col = pv_explorers.Color("color", colorChoice, sliceRep)
+
+    params = ["phi","theta","offset","color"]
+    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col], view_proxy)
+    #run through all parameter combinations and put data into the store
+    e.explore()
+    del view_proxy
+
+    return e
+
+def test_pv_contour(fname):
+    import explorers
+    import pv_explorers
+    import paraview.simple as pv
+
+    if not fname:
+        fname = "info.json"
+
+    # set up some processing task
+    view_proxy = pv.CreateRenderView()
+    s = pv.Wavelet()
+    contour = pv.Contour(Input=s, ContourBy='RTData', ComputeScalars=1 )
+    sliceRep = pv.Show(contour)
+
+    #make or open a cinema data store to put results in
+    cs = FileStore(fname)
+    cs.filename_pattern = "{phi}_{theta}_{contour}_{color}_contour.png"
+    cs.add_parameter("phi", make_parameter('phi', [90,120,140]))
+    cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
+    cs.add_parameter("contour", make_parameter('contour', [50,100,150,200]))
+    cs.add_parameter("color", make_parameter('color', ['white', 'RTData'], typechoice='list'))
+
+    #associate control points wlth parameters of the data store
+    cam = pv_explorers.Camera([0,0,0], [0,1,0], 75.0, view_proxy) #phi,theta implied
+    filt = pv_explorers.Contour("contour", contour)
+
+    colorChoice = pv_explorers.ColorList()
+    colorChoice.AddSolidColor('white', [1,1,1])
+    colorChoice.AddLUT('RTData', pv.GetLookupTableForArray( "RTData", 1, RGBPoints=[43.34006881713867, 0.23, 0.299, 0.754, 160.01158714294434, 0.865, 0.865, 0.865, 276.68310546875, 0.706, 0.016, 0.15] )
+)
+    col = pv_explorers.Color("color", colorChoice, sliceRep)
+
+    params = ["phi","theta","contour","color"]
+    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col], view_proxy)
+
+    print "HELLO"
+
+    #run through all parameter combinations and put data into the store
+    e.explore()
+
+    pv.Delete(s)
+    pv.Delete(contour)
+    pv.Delete(view_proxy)
+    return e
+
+def test_pv_composite(fname):
+    import explorers
+    import pv_explorers
+    import paraview.simple as pv
+
+    if not fname:
+        fname = "info.json"
+
+    # set up some processing task
+    view_proxy = pv.CreateRenderView()
+    s = pv.Wavelet()
+    contour = pv.Contour(Input=s, ContourBy='RTData', ComputeScalars=1 )
+    sliceRep = pv.Show(contour)
+
+    #make or open a cinema data store to put results in
+    cs = FileStore(fname)
+    cs.filename_pattern = "{phi}_{theta}_{contour}_{color}_contour.png"
+    cs.add_parameter("phi", make_parameter('phi', [90,120,140]))
+    cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
+    cs.add_parameter("contour", make_parameter('contour', [50,100,150,200], typechoice='option'))
+    cs.add_parameter("color", make_parameter('color', ['white', 'RTData', 'depth'], typechoice='list'))
+
+    #associate control points wlth parameters of the data store
+    cam = pv_explorers.Camera([0,0,0], [0,1,0], 75.0, view_proxy) #phi,theta implied
+    filt = pv_explorers.Contour("contour", contour)
+
+    colorChoice = pv_explorers.ColorList()
+    colorChoice.AddSolidColor('white', [1,1,1])
+    colorChoice.AddLUT('RTData', pv.GetLookupTableForArray
+                       ( "RTData", 1,
+                         RGBPoints=[43.34006881713867, 0.23, 0.299, 0.754, 160.01158714294434, 0.865, 0.865, 0.865, 276.68310546875, 0.706, 0.016, 0.15] ))
+    colorChoice.AddDepth('depth')
+
+    col = pv_explorers.Color("color", colorChoice, sliceRep)
+
+    params = ["phi","theta","contour","color"]
+    e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col], view_proxy)
+
+    #run through all parameter combinations and put data into the store
+    e.explore()
+
+    pv.Delete(s)
+    pv.Delete(contour)
+    pv.Delete(view_proxy)
+    return e
+
 if __name__ == "__main__":
-    test_store()
-    demonstrate_populate()
-    demonstrate_analyze()
-    test_pv_slice("/tmp/pv_slice_data/info.json")
-    test_vtk_clip("/tmp/vtk_clip_data/info.json")
-    test_pv_contour("/tmp/pv_contour/info.json")
-    test_NOP("/tmp/nop/info.json")
+    #demonstrate_manual_populate() #doesn't work with text data
+    #demonstrate_populate() #doesn't work with text data
+    #demonstrate_analyze() #doesn't work with text data
+    #test_store() #doesn't work with text data
+    #test_SFS() #doesn't work with text data
+
+    #test_NOP("/tmp/nop/info.json")
+
+    #test_layers_and_fields("/tmp/laf/info.json") !
+    #test_vtk_clip("/tmp/vtk_clip_data/info.json") !
+    #test_vtk_clipSFS("/tmp/vtk_clip_dataSFS/info.json") !
+    #test_vtk_contour("/tmp/vtk_contour_data/info.json") !
+    #test_pv_slice("/tmp/pv_slice_data/info.json")
+    #test_pv_sliceSFS("/tmp/pv_slice_data/info.json")
+    #test_pv_contour("/tmp/pv_contour/info.json")
+    #test_pv_composite("/tmp/pv_composite/info.json")
+    echo "DONE"
