@@ -246,6 +246,20 @@ class FileStore(Store):
         with open(self.__dbfilename, mode="wb") as file:
             json.dump(info_json, file)
 
+    def _filename_root(self):
+        return self.filename_pattern[0:self.filename_pattern.rfind(".")]
+
+    def determine_type(self, desc):
+        """ Now that we are storing depth, each document in the store may
+        be a completely different type of data, and require a different file
+        format. What follows is a bad heuristic for figuring that out, without
+        the need for _ files. """
+        if desc['color'] == 'depth':
+            return 'Z'
+        if self.filename_pattern[self.filename_pattern.rfind("."):] == 'txt':
+            return 'TXT'
+        return 'RGB'
+
     @property
     def filename_pattern(self):
         """
@@ -263,15 +277,26 @@ class FileStore(Store):
         self.__filename_pattern = val
         #Now set up to be able to convert filenames into descriptors automatically
         #break filename pattern up into an ordered list of parameter names
-        cp = re.sub("{[^}]+}", "(\S+)", self.__filename_pattern) #convert to a RE
+        cp = re.sub("{[^}]+}", "(\S+)", self._filename_root()) #convert to a RE
         #extract names
-        keyargs = re.match(cp, self.__filename_pattern).groups()
+        #keyargs = re.match(cp, self.__filename_pattern).groups()
+        keyargs = re.match(cp, self._filename_root()).groups()
         self.__fn_keys = list(x[1:-1] for x in keyargs) #strip "{" and "}"
         #make an RE to get the values from full pathname, igoring leading directories
-        self.__fn_vals_RE = '(\S+)/'+cp
+        self.__fn_vals_RE = '(\S+)/'+cp+"\..*"
 
-    def get_image_type(self):
-        return self.filename_pattern[self.filename_pattern.rfind("."):]
+    def _get_filename(self, document):
+        desc = self.get_complete_descriptor(document.descriptor)
+        doctype = self.determine_type(desc)
+        suffix = self.filename_pattern.format(**desc)
+        #if hasattr(document, 'extension'):
+        #    suffix = suffix[:suffix.rfind(".")] + document.extension
+        if doctype == 'Z':
+            #  strip trailing extension and add ".im"
+            suffix = suffix[0:suffix.rfind(".")] + ".im"
+        dirname = os.path.dirname(self.__dbfilename)
+        fullpath = os.path.join(dirname, suffix)
+        return fullpath
 
     def insert(self, document):
         super(FileStore, self).insert(document)
@@ -280,33 +305,45 @@ class FileStore(Store):
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         if not document.data == None:
-            imageslice = document.data
-            pimg = PIL.Image.fromarray(imageslice)
-            pimg.save(fname)
+            doctype = self.determine_type(document.descriptor)
+            if doctype == 'RGB':
+                imageslice = document.data
+                pimg = PIL.Image.fromarray(imageslice)
+                pimg.save(fname)
+            elif doctype == 'Z':
+                imageslice = document.data
+                pimg = PIL.Image.fromarray(imageslice)
+                pimg.save(fname) #beside PIL.im, is there a standard for depth images?
+            else:
+                with open(fname, mode='w') as file:
+                    file.write(document.data)
 
-    def _get_filename(self, document):
-        desc = self.get_complete_descriptor(document.descriptor)
-        suffix = self.filename_pattern.format(**desc)
-        if hasattr(document, 'extension'):
-            suffix = suffix[:suffix.rfind(".")] + document.extension
-        dirname = os.path.dirname(self.__dbfilename)
-        return os.path.join(dirname, suffix)
-
-    def _load_image(self, doc_file):
-        #with open(doc_file + ".__data__", "r") as file:
-        #    info_json = json.load(file)
-        try:
-            with open(doc_file, "r") as file:
-                temp = file.read()
-                imageparser = PIL.ImageFile.Parser()
-                imageparser.feed(temp)
-                temp = imageparser.close()
-                data = np.array(temp.getdata(), np.uint8).reshape(temp.size[1], temp.size[0], 3)
-        except IOError:
-            data = None
+    def _load_data(self, doc_file):
         # convert filename into a list of values
         vals = re.match(self.__fn_vals_RE, doc_file).groups()[1:]
         descriptor = dict(zip(self.__fn_keys, vals))
+        doctype = self.determine_type(descriptor)
+        try:
+            if doctype == 'RGB':
+                with open(doc_file, "r") as file:
+                    temp = file.read()
+                    imageparser = PIL.ImageFile.Parser()
+                    imageparser.feed(temp)
+                    temp = imageparser.close()
+                    data = np.array(temp.getdata(), np.uint8).reshape(temp.size[1], temp.size[0], 3)
+            elif doctype == 'Z':
+                with open(doc_file, "r") as file:
+                    temp = file.read()
+                    imageparser = PIL.ImageFile.Parser()
+                    imageparser.feed(temp)
+                    temp = imageparser.close()
+                    #data = np.array(temp.getdata(), np.uint8).reshape(temp.size[1], temp.size[0])
+                    data = np.array(temp.getdata(), np.float32).reshape(temp.size[1], temp.size[0])
+            else:
+                with open(doc_file, "r") as file:
+                    data = file.read()
+        except IOError:
+            data = None
         doc = Document(descriptor, data)
         doc.attributes = None
         return doc
@@ -320,24 +357,22 @@ class FileStore(Store):
             if not name in q:
                 p[name] = "*"
         dirname = os.path.dirname(self.__dbfilename)
-        match_pattern = os.path.join(dirname, self.filename_pattern.format(**p))
+        fnp = self._filename_root() + ".*"
+        match_pattern = os.path.join(dirname, fnp.format(**p))
 
         from fnmatch import fnmatch
         from os import walk
         for root, dirs, files in walk(os.path.dirname(self.__dbfilename)):
             for fn in files:
                 doc_file = os.path.join(root, fn)
-                #if file.find("__data__") == -1 and fnmatch(doc_file, match_pattern):
-                #    yield self.load_document(doc_file)
                 if fnmatch(doc_file, match_pattern):
-                    yield self._load_image(doc_file)
+                    yield self._load_data(doc_file)
 
 class SingleFileStore(Store):
     """Implementation of a store based on a single volume file (image stack)."""
 
     def __init__(self, dbfilename=None):
         super(SingleFileStore, self).__init__()
-        self.__filename_pattern = None
         self.__dbfilename = dbfilename if dbfilename \
                 else os.path.join(os.getcwd(), "info.json")
         self._volume = None

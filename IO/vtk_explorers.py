@@ -19,26 +19,41 @@ class ImageExplorer(explorers.Explorer):
         self.rw = rw
         self.w2i = vtk.vtkWindowToImageFilter()
         self.w2i.SetInput(self.rw)
+        #self.count = 0
 
     def insert(self, document):
+        r = self.rw.GetRenderers().GetFirstRenderer()
+        #print r.ComputeVisiblePropBounds()
+        #r.ResetCameraClippingRange(-100,100,-100,100,-100,100)
         self.rw.Render()
         self.w2i.Modified()
         self.w2i.Update()
         image = self.w2i.GetOutput()
+        #tmpw = vtk.vtkDataSetWriter()
+        #tmpw.SetFileName("/tmp/foo/img_" + str(self.count) + ".vtk")
+        #self.count = self.count + 1
+        #tmpw.SetInputData(image)
+        #tmpw.Write()
         npview = dsa.WrapDataObject(image)
         idata = npview.PointData[0]
         ext = image.GetExtent()
         width = ext[1]-ext[0]+1
         height = ext[3]-ext[2]+1
-        imageslice = np.flipud(idata.reshape(width,height,3))
+        if image.GetNumberOfScalarComponents() == 1:
+            imageslice = np.flipud(idata.reshape(width,height))
+        else:
+            imageslice = np.flipud(idata.reshape(width,height,image.GetNumberOfScalarComponents()))
+
         document.data = imageslice
         super(ImageExplorer, self).insert(document)
 
     def nextDoZ(self):
         self.w2i.SetInputBufferTypeToZBuffer()
+        #self.w2i.ReadFrontBufferOff()
 
-    def nextDoRGB(self):
+    def nextDoColor(self):
         self.w2i.SetInputBufferTypeToRGB()
+        #self.w2i.ReadFrontBufferOn()
 
 class Clip(explorers.Track):
     """
@@ -95,6 +110,9 @@ class ColorList():
     def AddLUT(self, name, lut, field, arrayname):
         self._dict[name] = {'type':'lut','content':lut,'field':field,'arrayname':arrayname}
 
+    def AddDepth(self, name):
+        self._dict[name] = {'type':'depth'}
+
     def getColor(self, name):
         return self._dict[name]
 
@@ -107,31 +125,22 @@ class Color(explorers.Track):
         self.parameter = parameter
         self.colorlist = colorlist
         self.actor = actor
+        self.imageExplorer = None
 
     def execute(self, doc):
         o = doc.descriptor[self.parameter]
         spec = self.colorlist.getColor(o)
         if spec['type'] == 'rgb':
+            if self.imageExplorer:
+                self.imageExplorer.nextDoColor()
             self.actor.GetMapper().ScalarVisibilityOff()
             self.actor.GetProperty().SetColor(spec['content'])
         if spec['type'] == 'lut':
+            if self.imageExplorer:
+                self.imageExplorer.nextDoColor()
             self.actor.GetMapper().ScalarVisibilityOn()
             self.actor.GetMapper().SetLookupTable(spec['content'])
             self.actor.GetMapper().SetScalarMode(spec['field'])
             self.actor.GetMapper().SelectColorArray(spec['arrayname'])
-
-class Depth(explorers.Track):
-    """
-    A track that facilitates capturing RGB images, or Z depths, or values
-    """
-    def __init__(self, parameter):
-        super(Depth, self).__init__()
-        self.parameter = parameter
-        self.imageExplorer = None
-
-    def execute(self, doc):
-        o = doc.descriptor[self.parameter]
-        if o == 'depth':
-           self.imageExplorer.nextDoZ()
-        else:
-           self.imageExplorer.nextDoRGB()
+        if spec['type'] == 'depth':
+            self.imageExplorer.nextDoZ()

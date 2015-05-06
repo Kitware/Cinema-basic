@@ -56,24 +56,6 @@ def demonstrate_analyze(fname="/tmp/demonstrate_populate/info.json"):
     for doc in cs.find({'theta': 20}):
         print doc.descriptor, doc.data
 
-def test_store(fname="/tmp/cinema/info.json"):
-    fs = FileStore()
-    fs.filename_pattern = "{phi}/{theta}/data.raw"
-    fs.add_parameter('theta', {
-        "default": 60,
-        "type":  "range",
-        "values": [60, 90, 120, 150],
-        "label": "theta"
-        })
-    fs.add_parameter('phi', {
-        "default": 180,
-        "type":  "range",
-        "values": [180],
-        "label": "phi"
-        })
-    doc = Document({"phi": 10}, "Hello World")
-    fs.insert(doc)
-
 def test_SFS(fname="/tmp/cinemaSFS/info.json"):
     if not fname:
         fname = "info.json"
@@ -113,61 +95,6 @@ def test_SFS(fname="/tmp/cinemaSFS/info.json"):
     print "GET *,150"
     for x in fs.find({"theta":150}):
         print x.data
-
-def test_NOP(fname):
-    import explorers
-    import pv_explorers
-    import paraview.simple as pv
-
-    if not fname:
-        fname = "info.json"
-
-    # set up some processing task
-    view_proxy = pv.CreateRenderView()
-    s = pv.Wavelet()
-    c = pv.Contour(Input=s, ContourBy='RTData', ComputeScalars=1 )
-    sliceRep = pv.Show(c)
-
-    #make or open a cinema data store to put results in
-    cs = FileStore(fname)
-    cs.filename_pattern = "{phi}_{theta}_{contour}_{color}_data.raw"
-    cs.add_parameter("phi", make_parameter('phi', [90,120,140]))
-    cs.add_parameter("theta", make_parameter('theta', [-90,-30,30,90]))
-    cs.add_parameter("contour", make_parameter('contour', [50,100,150,200]))
-    cs.add_parameter("color", make_parameter('color', ['white', 'RTData'], typechoice='list'))
-    cs.add_parameter("operation", make_parameter('operation',
-        ['a', 'b', 'c'], typechoice='list'))
-
-    #associate control points wlth parameters of the data store
-    cam = pv_explorers.Camera([0,0,0], [0,1,0], 75.0, view_proxy) #phi,theta implied
-    filt = pv_explorers.Contour("contour", c)
-    colorChoice = pv_explorers.ColorList()
-    colorChoice.AddSolidColor('white', [1,1,1])
-    colorChoice.AddLUT('RTData', pv.GetLookupTableForArray( "RTData", 1, RGBPoints=[43.34006881713867, 0.23, 0.299, 0.754, 160.01158714294434, 0.865, 0.865, 0.865, 276.68310546875, 0.706, 0.016, 0.15] )
-)
-    col = pv_explorers.Color("color", colorChoice, sliceRep)
-
-    class testEE(explorers.Track):
-        """
-        An explorer to demonstrate not having an entry in the name_pattern.
-        Concievable can use these to combine several internal passes together.
-        May be useful for composite view type for example.
-        """
-        import os.path
-
-        def execute(self, doc):
-            o = doc.descriptor['operation']
-            print doc.descriptor, "OP=", o
-            doc.data = o
-
-    op = testEE()
-
-    params = ["phi","theta","contour","color","operation"]
-    e = explorers.Explorer(cs, params, [cam, filt, col, op])
-
-    #run through all parameter combinations and put data into the store
-    e.explore()
-    return e
 
 def test_layers_and_fields(fname):
     if not fname:
@@ -334,7 +261,6 @@ def test_vtk_contour(fname=None):
     cs.filename_pattern = "{contour}_{color}.png"
     cs.add_parameter("contour", make_parameter('contour', [0,25,50,75,100,125,150,175,200,225,250]))
     cs.add_parameter("color", make_parameter('color', ['white','red']))
-    #cs.add_parameter("mode", make_parameter('mode', ['color','depth']))
 
     colorChoice = vtk_explorers.ColorList()
     colorChoice.AddSolidColor('white', [1,1,1])
@@ -343,13 +269,79 @@ def test_vtk_contour(fname=None):
     #associate control points wlth parameters of the data store
     g = vtk_explorers.Contour('contour', cf, 'SetValue')
     c = vtk_explorers.Color('color', colorChoice, a)
-    #d = vtk_explorers.Depth('mode')
     e = vtk_explorers.ImageExplorer(cs, ['contour','color'], [g,c], rw)
-    #d.imageExplorer = e
 
     #run through all parameter combinations and put data into the store
     e.explore()
     return e
+
+def test_vtk_composite(fname=None):
+    import explorers
+    import vtk_explorers
+    import vtk
+
+    if not fname:
+        fname = "info.json"
+
+    # set up some processing task
+    s = vtk.vtkRTAnalyticSource()
+    s.SetWholeExtent(-50,50,-50,50,-50,50)
+    cf = vtk.vtkContourFilter()
+    cf.SetInputConnection(s.GetOutputPort())
+    cf.SetInputArrayToProcess(0,0,0, "vtkDataObject::FIELD_ASSOCIATION_POINTS", "RTData")
+    cf.SetNumberOfContours(1)
+    cf.SetValue(0, 100)
+
+    m = vtk.vtkPolyDataMapper()
+    m.SetInputConnection(cf.GetOutputPort())
+
+    rw = vtk.vtkRenderWindow()
+    r = vtk.vtkRenderer()
+    rw.AddRenderer(r)
+
+    a = vtk.vtkActor()
+    a.SetMapper(m)
+    r.AddActor(a)
+
+    rw.Render()
+    r.ResetCamera()
+
+    #make or open a cinema data store to put results in
+    cs = FileStore(fname)
+    cs.filename_pattern = "{contour}_{color}.png"
+    cs.add_parameter("contour", make_parameter('contour', [50,75,100,125,150,175,200,225]))
+    cs.add_parameter("color", make_parameter('color', ['white','red','depth']))
+
+    colorChoice = vtk_explorers.ColorList()
+    colorChoice.AddSolidColor('white', [1,1,1])
+    colorChoice.AddSolidColor('red', [1,0,0])
+    colorChoice.AddDepth('depth')
+
+    #associate control points wlth parameters of the data store
+    g = vtk_explorers.Contour('contour', cf, 'SetValue')
+    c = vtk_explorers.Color('color', colorChoice, a)
+    e = vtk_explorers.ImageExplorer(cs, ['contour','color'], [g,c], rw)
+    c.imageExplorer = e
+
+    #run through all parameter combinations and put data into the store
+    e.explore()
+    return e
+
+def test_read_vtk_composite(fname=None):
+    import explorers
+    import vtk_explorers
+    import vtk
+
+    if not fname:
+        fname = "info.json"
+
+    #make or open a cinema data store to put results in
+    cs = FileStore(fname)
+    cs.load()
+    print cs.parameter_list
+    #for doc in cs.find({'color': 'white'}):
+    for doc in cs.find({'color': 'depth'}):
+        print doc.descriptor, doc.data
 
 def test_pv_slice(fname):
     import explorers
@@ -460,8 +452,6 @@ def test_pv_contour(fname):
     params = ["phi","theta","contour","color"]
     e = pv_explorers.ImageExplorer(cs, params, [cam, filt, col], view_proxy)
 
-    print "HELLO"
-
     #run through all parameter combinations and put data into the store
     e.explore()
 
@@ -520,17 +510,16 @@ if __name__ == "__main__":
     #demonstrate_manual_populate() #doesn't work with text data
     #demonstrate_populate() #doesn't work with text data
     #demonstrate_analyze() #doesn't work with text data
-    #test_store() #doesn't work with text data
     #test_SFS() #doesn't work with text data
 
-    #test_NOP("/tmp/nop/info.json")
-
-    #test_layers_and_fields("/tmp/laf/info.json") !
-    #test_vtk_clip("/tmp/vtk_clip_data/info.json") !
-    #test_vtk_clipSFS("/tmp/vtk_clip_dataSFS/info.json") !
-    #test_vtk_contour("/tmp/vtk_contour_data/info.json") !
+    #test_layers_and_fields("/tmp/laf/info.json")
+    #test_vtk_clip("/tmp/vtk_clip_data/info.json")
+    #test_vtk_clipSFS("/tmp/vtk_clip_dataSFS/info.json")
+    #test_vtk_contour("/tmp/vtk_contour_data/info.json")
+    test_vtk_composite("/tmp/vtk_composite_data/info.json")
+    test_read_vtk_composite("/tmp/vtk_composite_data/info.json")
     #test_pv_slice("/tmp/pv_slice_data/info.json")
     #test_pv_sliceSFS("/tmp/pv_slice_data/info.json")
     #test_pv_contour("/tmp/pv_contour/info.json")
     #test_pv_composite("/tmp/pv_composite/info.json")
-    echo "DONE"
+    print "DONE"
