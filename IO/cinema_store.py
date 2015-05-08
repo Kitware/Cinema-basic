@@ -107,7 +107,6 @@ class Store(object):
         #    raise RuntimeError("Updating parameters after loading/creating a store is not supported.")
         # TODO: Err, except when it is, in the important case of adding new time steps to a collection.
         # I postulate it is always OK to add safely to outermost parameter (loop).
-        properties = self.validate_parameter(name, properties)
         self.__parameter_list[name] = properties
 
     def get_parameter(self, name):
@@ -124,12 +123,6 @@ class Store(object):
                 full_desc[name] = properties["default"]
         full_desc.update(partial_desc)
         return full_desc
-
-    def validate_parameter(self, name, properties):
-        """Validates a new parameter and return updated parameter properties.
-        Subclasses should override this as needed.
-        """
-        return properties
 
     @property
     def parameter_associations(self):
@@ -205,6 +198,34 @@ class Store(object):
         self.__parameter_associations.setdefault(dep_param, {}).update(
         {param: on_values})
 
+    def add_layer(self, name, properties):
+        """
+        A Layer boils down to an image of something in the scene, and only
+        that thing, along with the depth at each pixel. Layers (note the
+        plural) can be composited back together by a viewer.
+        """
+        properties['type'] = 'option'
+        properties['islayer'] = 'yes'
+        self.add_parameter(name, properties)
+
+    def add_sublayer(self, name, properties, parent_layer, parents_value):
+        """
+        An example of a layer is an isocontour display. An examples of sublayer
+        is the particular isovalues.
+        """
+        self.add_layer(name, properties)
+        self.assign_parameter_dependence(name, parent_layer, [parents_value])
+
+    def add_field(self, name, properties, parent_layer, parents_values):
+        """
+        A field is a component of the final color for a layer. Examples include:
+        depth, normal, color, scalar values.
+        """
+        properties['type'] = 'hidden'
+        properties['isfield'] = 'yes' #better yet, add a flag elsewhere in json
+        self.add_parameter(name, properties)
+        self.assign_parameter_dependence(name, parent_layer, parents_values)
+
 
 class FileStore(Store):
     """Implementation of a store based on named files and directories."""
@@ -254,7 +275,7 @@ class FileStore(Store):
         be a completely different type of data, and require a different file
         format. What follows is a bad heuristic for figuring that out, without
         the need for _ files. """
-        if desc['color'] == 'depth':
+        if 'color' in desc and desc['color'] == 'depth':
             return 'Z'
         if self.filename_pattern[self.filename_pattern.rfind("."):] == 'txt':
             return 'TXT'
@@ -547,7 +568,7 @@ def make_parameter(name, values, **kwargs):
     typechoice = kwargs['typechoice'] if 'typechoice' in kwargs else 'range'
     label = kwargs['label'] if 'label' in kwargs else name
 
-    types = ['list','range','option']
+    types = ['list','range','option','hidden']
     if not typechoice in types:
         raise RuntimeError, "Invalid typechoice, must be on of %s" % str(types)
     if not default in values:

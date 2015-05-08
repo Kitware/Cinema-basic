@@ -85,7 +85,7 @@ class Explorer(object):
                 ok = True
                 for dep, oks in dependencies[possible].iteritems():
                     #print "DEP", dep, "OKS", oks
-                    if not descriptor[dep] in oks:
+                    if (not dep in descriptor) or (not descriptor[dep] in oks):
                         #print "BAD"
                         ok = False
                 if ok:
@@ -136,3 +136,39 @@ class Track(object):
     def execute(self, document):
         """ subclasses operate on parameters here"""
         pass
+
+class Layer_Control(object):
+    """
+    Prototype for something that Layer track can control
+    """
+    def __init__(self, name, showFunc, hideFunc):
+        self.name = name
+        self.callShow = showFunc  #todo, determine if function now and convert instead of try/except below
+        self.callHide = hideFunc
+
+class Layer(Track):
+    """
+    A track that connects a layer to the set of objects in the scene that it controls.
+    """
+    def __init__(self, layer, objectlist):
+        super(Layer, self).__init__()
+        self.parameter = layer
+        # objlist is an array of class instances, they must have a name and
+        #show and hide method, use LayerControl to make them.
+        self.objectlist = objectlist
+
+    def execute(self, doc):
+        if not self.parameter in doc.descriptor:
+            return
+        o = doc.descriptor[self.parameter]
+        for obj in self.objectlist:
+            if obj.name == o:
+                try:
+                    obj.callShow() #method
+                except TypeError:
+                    obj.callShow(obj) #function
+            else:
+                try:
+                    obj.callHide()
+                except TypeError:
+                    obj.callHide(obj)

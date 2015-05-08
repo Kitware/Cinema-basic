@@ -96,14 +96,12 @@ def test_SFS(fname="/tmp/cinemaSFS/info.json"):
     for x in fs.find({"theta":150}):
         print x.data
 
-def test_layers_and_fields(fname):
-    if not fname:
-        fname = "info.json"
+def test_parameter_bifurcation():
     import explorers
 
     params = ["time","layer","slice_field","back_color"]
 
-    cs = FileStore(fname)
+    cs = Store()
     cs.add_parameter("time", make_parameter("time", [0,1,2]))
     cs.add_parameter("layer", make_parameter("layer", ['outline','slice','background']))
     cs.add_parameter("slice_field", make_parameter("slice_field", ['solid_red', 'temperature', 'pressure']))
@@ -127,6 +125,99 @@ def test_layers_and_fields(fname):
 
     print "WITH DEPENDENCIES AND FIXED TIME"
     e.explore({'time':3})
+
+def test_layers_and_fields():
+    import explorers
+
+    params = ["time", "layer", "component"]
+
+    cs = Store()
+    cs.add_parameter("time", make_parameter("time", ["0"]))
+    cs.add_layer("layer", make_parameter("layer", ['outline','slice','background']))
+    #cs.add_sublayer("sublayer", make_parameter("sublayer", ['0','1']), "layer", "slice") #TODO, explorer doesn't traverse deps of deps right
+    cs.add_field("component", make_parameter("component", ['z','RGB']), "layer", 'slice')
+
+    def showme(self):
+        print "NOW YOU SEE ", self.name
+    def hideme(self):
+        print "NOW YOU DONT SEE ", self.name
+
+    outline_control = explorers.Layer_Control("outline", showme, hideme)
+    slice_control = explorers.Layer_Control("slice", showme, hideme)
+    background_control = explorers.Layer_Control("background", showme, hideme)
+
+    #slice_control1 = explorers.Layer_Control("0", showme, hideme)
+    #slice_control2 = explorers.Layer_Control("1", showme, hideme)
+
+    field_control1 = explorers.Layer_Control("z", showme, hideme)
+    field_control2 = explorers.Layer_Control("RGB", showme, hideme)
+
+    layertrack = explorers.Layer("layer", [outline_control, slice_control, background_control])
+    #sublayertrack = explorers.Layer("sublayer", [slice_control1, slice_control2])
+    fieldtrack = explorers.Layer("component", [field_control1,field_control2])
+
+    e = explorers.Explorer(cs, params, [layertrack, fieldtrack])
+    e.explore()
+
+def test_vtk_layers(fname=None):
+    import explorers
+    import vtk_explorers
+    import vtk
+
+    if not fname:
+        fname = "info.json"
+
+    # set up some processing task
+    s = vtk.vtkRTAnalyticSource()
+    s.SetWholeExtent(-50,50,-50,50,-50,50)
+
+    rw = vtk.vtkRenderWindow()
+    r = vtk.vtkRenderer()
+    rw.AddRenderer(r)
+
+    cactors = []
+    isos = []
+    for x in range(50,250,50):
+        isos.append(x)
+        cf = vtk.vtkContourFilter()
+        cf.SetInputConnection(s.GetOutputPort())
+        cf.SetInputArrayToProcess(0,0,0, "vtkDataObject::FIELD_ASSOCIATION_POINTS", "RTData")
+        cf.SetNumberOfContours(1)
+        cf.SetValue(0, x)
+        m = vtk.vtkPolyDataMapper()
+        m.SetInputConnection(cf.GetOutputPort())
+        a = vtk.vtkActor()
+        a.SetMapper(m)
+        r.AddActor(a)
+        cactors.append(a)
+
+    rw.Render()
+    r.ResetCamera()
+
+    #make or open a cinema data store to put results in
+    cs = FileStore(fname)
+    cs.filename_pattern = "{contour}_{color}.png"
+    contour_strs = [str(i) for i in isos]
+    param = make_parameter('contour', contour_strs)
+    cs.add_layer("contour", param)
+    cs.add_field("color", make_parameter('color', ['white','red','depth']), "contour", contour_strs)
+
+    vcontrols = []
+    for i in range(0,len(cactors)):
+        vcontrol = vtk_explorers.ActorInLayer(str(isos[i]), cactors[i])
+        vcontrols.append(vcontrol)
+    layertrack = explorers.Layer("contour", [v for v in vcontrols])
+
+    colorChoice = vtk_explorers.ColorList()
+    colorChoice.AddSolidColor('white', [1,1,1])
+    colorChoice.AddSolidColor('red', [1,0,0])
+    colorChoice.AddDepth('depth')
+
+    #associate control points wlth parameters of the data store
+    c = vtk_explorers.Color('color', colorChoice, a)
+    e = vtk_explorers.ImageExplorer(cs, ['contour', 'color'], [layertrack, c], rw)
+    c.imageExplorer = e
+    e.explore()
 
 def test_vtk_clip(fname=None):
     import explorers
@@ -512,12 +603,14 @@ if __name__ == "__main__":
     #demonstrate_analyze() #doesn't work with text data
     #test_SFS() #doesn't work with text data
 
-    #test_layers_and_fields("/tmp/laf/info.json")
+    #test_parameter_bifurcation()
+    test_layers_and_fields()
+    test_vtk_layers("/tmp/vlaf/info.json")
     #test_vtk_clip("/tmp/vtk_clip_data/info.json")
     #test_vtk_clipSFS("/tmp/vtk_clip_dataSFS/info.json")
     #test_vtk_contour("/tmp/vtk_contour_data/info.json")
-    test_vtk_composite("/tmp/vtk_composite_data/info.json")
-    test_read_vtk_composite("/tmp/vtk_composite_data/info.json")
+    #test_vtk_composite("/tmp/vtk_composite_data/info.json")
+    #test_read_vtk_composite("/tmp/vtk_composite_data/info.json")
     #test_pv_slice("/tmp/pv_slice_data/info.json")
     #test_pv_sliceSFS("/tmp/pv_slice_data/info.json")
     #test_pv_contour("/tmp/pv_contour/info.json")

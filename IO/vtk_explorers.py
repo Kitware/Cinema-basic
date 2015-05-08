@@ -144,3 +144,17 @@ class Color(explorers.Track):
             self.actor.GetMapper().SelectColorArray(spec['arrayname'])
         if spec['type'] == 'depth':
             self.imageExplorer.nextDoZ()
+
+class ActorInLayer(explorers.Layer_Control):
+
+    def showme(self):
+        #print self.name, "\tON"
+        self.actor.VisibilityOn()
+
+    def hideme(self):
+        #print self.name, "\tOFF"
+        self.actor.VisibilityOff()
+
+    def __init__(self, parameter, actor):
+        super(ActorInLayer, self).__init__(parameter, self.showme, self.hideme)
+        self.actor = actor
