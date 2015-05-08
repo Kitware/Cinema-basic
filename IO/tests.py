@@ -183,6 +183,7 @@ def test_vtk_layers(fname=None):
         cf.SetInputConnection(s.GetOutputPort())
         cf.SetInputArrayToProcess(0,0,0, "vtkDataObject::FIELD_ASSOCIATION_POINTS", "RTData")
         cf.SetNumberOfContours(1)
+        cf.ComputeScalarsOn()
         cf.SetValue(0, x)
         m = vtk.vtkPolyDataMapper()
         m.SetInputConnection(cf.GetOutputPort())
@@ -200,7 +201,7 @@ def test_vtk_layers(fname=None):
     contour_strs = [str(i) for i in isos]
     param = make_parameter('contour', contour_strs)
     cs.add_layer("contour", param)
-    cs.add_field("color", make_parameter('color', ['white','red','depth']), "contour", contour_strs)
+    cs.add_field("color", make_parameter('color', ['white','red','depth','v0']), "contour", contour_strs)
 
     vcontrols = []
     for i in range(0,len(cactors)):
@@ -212,6 +213,7 @@ def test_vtk_layers(fname=None):
     colorChoice.AddSolidColor('white', [1,1,1])
     colorChoice.AddSolidColor('red', [1,0,0])
     colorChoice.AddDepth('depth')
+    colorChoice.AddValueRender('v0', vtk.VTK_SCALAR_MODE_USE_POINT_FIELD_DATA, 'Normals', 0)
 
     #associate control points wlth parameters of the data store
     c = vtk_explorers.Color('color', colorChoice, a)

@@ -47,13 +47,23 @@ class ImageExplorer(explorers.Explorer):
         document.data = imageslice
         super(ImageExplorer, self).insert(document)
 
-    def nextDoZ(self):
-        self.w2i.SetInputBufferTypeToZBuffer()
-        #self.w2i.ReadFrontBufferOff()
-
-    def nextDoColor(self):
-        self.w2i.SetInputBufferTypeToRGB()
-        #self.w2i.ReadFrontBufferOn()
+    def setDrawMode(self, choice, **kwargs):
+        self.rw.GetRenderers().GetFirstRenderer().SetPass(None);
+        if choice == 'color':
+            self.w2i.SetInputBufferTypeToRGB()
+            #self.w2i.ReadFrontBufferOff()
+        if choice == 'depth':
+            self.w2i.SetInputBufferTypeToZBuffer()
+            #self.w2i.ReadFrontBufferOn()
+        if choice == 'value':
+            self.w2i.SetInputBufferTypeToRGB()
+            cp = vtk.vtkCameraPass()
+            vp = vtk.vtkValuePasses()
+            cp.SetDelegatePass(vp)
+            #TODO: if supplied, pass manually specified range over too
+            vp.SetInputArrayToProcess(kwargs['field'],kwargs['name'])
+            vp.SetInputComponentToProcess(kwargs['component'])
+            self.rw.GetRenderers().GetFirstRenderer().SetPass(cp);
 
 class Clip(explorers.Track):
     """
@@ -113,6 +123,11 @@ class ColorList():
     def AddDepth(self, name):
         self._dict[name] = {'type':'depth'}
 
+    def AddValueRender(self, name, field, arrayname, component):
+        self._dict[name] = {'type':'value', 'field':field, 'arrayname':arrayname, 'component':component}
+
+    #TODO: add drawluminance mode
+
     def getColor(self, name):
         return self._dict[name]
 
@@ -132,18 +147,24 @@ class Color(explorers.Track):
         spec = self.colorlist.getColor(o)
         if spec['type'] == 'rgb':
             if self.imageExplorer:
-                self.imageExplorer.nextDoColor()
+                self.imageExplorer.setDrawMode("color")
             self.actor.GetMapper().ScalarVisibilityOff()
             self.actor.GetProperty().SetColor(spec['content'])
         if spec['type'] == 'lut':
             if self.imageExplorer:
-                self.imageExplorer.nextDoColor()
+                self.imageExplorer.setDrawMode("color")
             self.actor.GetMapper().ScalarVisibilityOn()
             self.actor.GetMapper().SetLookupTable(spec['content'])
             self.actor.GetMapper().SetScalarMode(spec['field'])
             self.actor.GetMapper().SelectColorArray(spec['arrayname'])
         if spec['type'] == 'depth':
-            self.imageExplorer.nextDoZ()
+            self.imageExplorer.setDrawMode("depth")
+        if spec['type'] == 'value':
+            if self.imageExplorer:
+                self.imageExplorer.setDrawMode("value",
+                                               field=spec['field'],
+                                               name=spec['arrayname'],
+                                               component=spec['component'])
 
 class ActorInLayer(explorers.Layer_Control):
 
